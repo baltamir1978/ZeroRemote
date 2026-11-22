@@ -1,60 +1,99 @@
 # ZeroRemote
 
-La pantalla y el teclado del **M5Stack Cardputer Zero** desde el navegador, por Tailscale
-(`http://cpzero:8320/`). Qué hace y cómo se usa está en `README.md`; aquí va lo que hace falta
-para tocarlo.
+La pantalla, el teclado y los archivos del **M5Stack Cardputer Zero** desde el navegador, por
+Tailscale (`http://<IP de Tailscale>:8320/`), y la app **Remote** del lanzador que los enciende
+y apaga y enseña la dirección en un QR. Qué hace y cómo se usa está en `README.md`; aquí va lo
+que hace falta para tocarlo.
 
-No es una app de Android ni de la tienda: de `~/Proyectos/CLAUDE.md` valen el estilo
-(comentarios, documentación y commits en español explicando el porqué; pocas dependencias;
-lógica pura con pruebas) y que el repositorio sería **público**. La página está en español
-(es para Bruno, no va a la tienda).
+De `~/Proyectos/CLAUDE.md` valen el estilo (comentarios, documentación y commits en español
+explicando el porqué; pocas dependencias; lógica pura con pruebas), que el repositorio es
+**público** y la entrega (commit que empieza por la versión, push). La **web está en español**
+(es para Bruno); la **app, en inglés**, como las demás del Cardputer (podría ir a la tienda).
 
-## Cómo está hecho
+## Qué hay en el repositorio
 
-- `zeroremote/` (Python 3.13, **sólo biblioteca estándar**: en el Cardputer no se instala nada
-  con pip): `ws.py` (WebSocket mínimo), `screen.py` (framebuffer y franjas de filas que
-  cambian), `keys.py` (escribir `input_event` en el teclado), `server.py` (asyncio: HTTP,
-  WebSocket, estado del aparato, `wake`). Página en `zeroremote/web/index.html`, sin
-  dependencias.
-- Icono: dibujo propio de un Cardputer Zero (no foto ni logo de M5Stack), generado con
-  `Tools/generar_icono.py` (SVG + PNG de 32/180/192/512 con ImageMagick, que **no pinta
-  `stroke`**: los contornos van con rellenos). `manifest.webmanifest` para la pantalla de
-  inicio; el servidor sólo sirve lo que hay en `STATIC`.
-- Protocolo: binario = franja (`<BHH` tipo 1, fila, nº de filas + zlib de RGB565); texto =
-  JSON. Del navegador: `{"t":"key","code":n,"down":bool}`, `{"t":"tap","code":n}`,
-  `{"t":"wake"}`. Del servidor: `{"t":"status",battery,charging,draw_ma,brightness}` cada 3 s
-  y enseguida tras una tecla.
-- Cada cliente lleva su «último cuadro enviado»: uno lento recibe menos imágenes, nunca rotas.
-  `writer.drain()` es lo que frena.
+Dos partes que van en el mismo `.deb`:
+
+- **El servicio** (`zeroremote/`, Python 3.13, **sólo biblioteca estándar**: en el Cardputer no
+  se instala nada con pip). Se instala en `/usr/lib/zeroremote` y corre como servicio del
+  sistema con `User=1000` (`packaging/zeroremote.service`), como zeropowerd: la tienda sólo
+  admite unidades en `usr/lib/systemd/system` que no corran como root.
+  - `ws.py` WebSocket mínimo; `screen.py` framebuffer y franjas de filas que cambian; `keys.py`
+    escribir `input_event` en el teclado; `files.py` carpetas compartidas y comprobación de
+    rutas; `config.py` interruptores y fichero de estado; `server.py` asyncio (HTTP, WebSocket,
+    API de archivos, bucle que vigila los interruptores).
+  - Página en `zeroremote/web/index.html`, sin dependencias: pantalla + botones arriba y
+    archivos debajo, en la misma página (Bruno: «no hacen falta pestañas»).
+- **La app Remote** (C++17 + LVGL 9.5, base de ZeroPower, que viene de la plantilla oficial):
+  `src/`, `CMakeLists.txt`, `cmake/`, `assets/`. Es una sola pantalla (`HomeScreen`, en
+  `src/view/screens/home_screen.*`): QR (`lv_qrcode`, activado en los dos `lv_conf_*.h`), dos
+  interruptores y quién mira. La lógica pura en `src/model/remote_settings.*` con
+  `tests/remote_model_test.cpp`.
+
+## Cómo hablan la app y el servicio
+
+- **Interruptores**: `~/.config/zeroremote/remote.conf` (`screen=on|off`, por defecto on;
+  `files=on|off`, por defecto **off**). La app lo reescribe con temporal + rename; el servicio
+  mira la fecha cada 2 s. Los valores por defecto están en `config.py` y en
+  `remote_settings.h`: **tienen que coincidir**.
+- **Estado**: el servicio escribe `$XDG_RUNTIME_DIR/zeroremote/status` (`listening`, `url`,
+  `screen`, `files`, `clients`, `last_client`) cada 2 s; la app lo lee cada 0,5 s.
+- Con los dos interruptores apagados el servicio cierra el puerto. Apagar la pantalla corta a
+  quien mira; apagar archivos corta una subida a medias.
+
+## Detalles que costó averiguar
+
+- Protocolo de la pantalla: binario = franja (`<BHH` tipo 1, fila, nº de filas + zlib de
+  RGB565); texto = JSON. Del navegador: `{"t":"key","code":n,"down":bool}`,
+  `{"t":"tap","code":n}`, `{"t":"wake"}`. Del servidor: `{"t":"status",...}` cada 3 s y
+  enseguida tras una tecla. Cada cliente lleva su «último cuadro enviado»: uno lento recibe
+  menos imágenes, nunca rotas (`writer.drain()` es lo que frena).
+- Archivos: raíces Music, Pictures, Videos, Downloads, Documents y Tracks (ZeroGPS) bajo
+  `$HOME`; toda ruta pasa por `files.resolve` (realpath + `commonpath`, también enlaces). Subir
+  escribe en `<nombre>.part` (oculto) y renombra; nunca pisa («nombre (1)»); deja 200 MB libres.
+  API: `GET /api/info`, `GET /api/files`, `GET /api/download`, `POST /api/upload|mkdir|delete`
+  con `root` y `path` en la query (subir: el cuerpo en crudo, no multipart).
 - Teclas: códigos de `linux/input-event-codes.h`. **El teclado `tca8418c` no tiene
   `KEY_MINUS` (12) ni `KEY_EQUAL` (13)** y el núcleo descarta lo que el dispositivo no anuncia:
-  «-», «+» y «*» van por las del teclado numérico (74, 78, 55). Los 111 códigos que tiene se
-  leen con `EVIOCGBIT`.
-- **Despertar**: el salvapantallas del lanzador a veces no enciende con la primera pulsación
-  (22-nov-2026, sin causa clara); `wake` manda Mayúsculas y reintenta hasta 3 veces mirando el
-  brillo. Probado: 3 de 3, en ~0,1 s.
-- Escucha sólo en la IP de `tailscale ip -4` (espera hasta 10 min a que Tailscale arranque) y
-  rechaza clientes fuera de `100.64.0.0/10` salvo `--any-client`.
+  «-», «+» y «*» van por las del teclado numérico (74, 78, 55).
+- **Despertar**: el salvapantallas del lanzador a veces no enciende con la primera pulsación;
+  `wake` manda Mayúsculas y reintenta hasta 3 veces mirando el brillo.
+- **El lanzador (APPLaunch 0.6.105) se cae al arrancar con 20 apps**
+  (`free(): invalid next size`; [launcher#268](https://github.com/CardputerZero/launcher/issues/268)).
+  `Tools/instalar.sh` se niega si ya hay 19. Los **iconos del lanzador tienen que ser PNG de 8
+  bits**: ImageMagick saca 16 desde el SVG (se convierte con `-depth 8 PNG32:`).
+- Iconos: dibujo propio de un Cardputer Zero (no foto ni logo de M5Stack),
+  `Tools/generar_icono.py` (ImageMagick **no pinta `stroke`**: los contornos van con rellenos).
 
-## Probar
+## Compilar y probar
 
 ```sh
-python3 -m unittest -v tests/test_zeroremote.py
-Tools/instalar.sh                     # pasa las pruebas, copia a cpzero y reinicia el servicio
+python3 -m unittest -v tests/test_zeroremote.py   # servicio (incluye la API con un servidor real)
+Tools/compilar.sh pruebas                          # app en el simulador + ctest
+Tools/compilar.sh deb                              # dist/ZeroRemote_<versión>_rev1_arm64.deb
+Tools/instalar.sh                                  # todo lo anterior + instalar en cpzero
 ```
 
-- En el aparato: `systemctl --user status zeroremote`, `journalctl --user -u zeroremote`.
-- Sin móvil: `google-chrome --headless=new --window-size=412,800 --virtual-time-budget=4000
-  --screenshot=<png> http://cpzero:8320/` enseña la página como en un móvil.
+- `.cache` es un enlace a `../ZeroTVBGone/.cache` (LVGL y el *sysroot*).
+- Versión en `CMakeLists.txt`, `app-builder.json` y `zeroremote/__init__.py`, a la vez.
+- Simulador sin pantalla: `Xvfb :98`, `SDL_RENDER_DRIVER=software`, `XDG_CONFIG_HOME` y
+  `XDG_RUNTIME_DIR` a una carpeta con un `zeroremote/status` de prueba; teclas con
+  `xdotool key --window`, captura con `import -window root -crop 320x170+287+118`.
+- La web sin móvil: `google-chrome --headless=new --window-size=412,1300
+  --virtual-time-budget=5000 --screenshot=<png> http://cpzero:8320/`.
+- En el aparato: `systemctl status zeroremote`, `journalctl -u zeroremote`.
 
 ## Estado
 
-- **0.1.0 (22-nov-2026) — primera versión, instalada en cpzero.** Probado desde el portátil:
-  página, WebSocket, imagen reconstruida idéntica al framebuffer (170 de 170 filas), teclas,
-  `wake`, y la página en Chrome a tamaño de móvil. **Sin probar en el móvil de Bruno** (el
-  teclado del móvil por `beforeinput`, mantener botones pulsados). En el Pixel de Bruno
-  `http://cpzero:8320/` no abre (el nombre no resuelve allí) y **con la IP de
-  Tailscale del aparato (`tailscale ip -4`), sí** (22-nov-2026): conecta y recibe la pantalla. El servicio
-  registra cada petición de la página (`page requested`) y cada cliente.
+- **0.2.0 (22-nov-2026) — archivos y app Remote; instalada en cpzero.** Compartir archivos
+  (probado desde el portátil: 2,4 MB/s subida, 2,3 bajada, 20 MB idénticos) y la app con QR e
+  interruptores (probada en el aparato: se abre desde el lanzador, apagar «File sharing» da 403
+  en la web a los 2-3 s y encenderlo lo devuelve). Para hacer sitio en el lanzador Bruno quitó
+  FactoryTest, GPS (el de origen), IR Chat y Keyboard Guide (desinstalados) y ocultó la
+  calculadora (`app_Math: 0` en `~/.config/cardputerzero/config.json`; copia en
+  `config.json.antes-20261122`). **Sin probar en el móvil**: escanear el QR, subir desde el
+  móvil. No enviada a la tienda.
+- **0.1.0 (22-nov-2026)** — pantalla y teclado. En el Pixel de Bruno el nombre `cpzero` no
+  resuelve: hay que usar la IP (por eso el QR).
 - Idea para después: versión por cable con adb (app de Android que llega al mismo servicio con
   `adb forward`); el adb del Cardputer es sólo USB y no tiene ningún aparato emparejado.
