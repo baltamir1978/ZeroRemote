@@ -48,6 +48,34 @@
   button.accent { color: var(--accent); }
   .hint { color: var(--muted); font-size: 13px; margin: 12px 2px 0; }
   #typer { position: fixed; left: -100px; top: 0; width: 40px; height: 30px; opacity: 0; font-size: 16px; }
+  .off { color: var(--muted); background: var(--surface); border-radius: 10px; padding: 14px; margin: 0; }
+  #filesec { margin-top: 22px; }
+  h2 { font-size: 16px; margin: 0 0 10px; font-weight: 650; display: flex; align-items: baseline; gap: 8px; }
+  h2 small { color: var(--muted); font-weight: 400; font-size: 12.5px; margin-left: auto; font-variant-numeric: tabular-nums; }
+  .roots { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .roots button { min-height: 36px; padding: 0 12px; border-radius: 99px; white-space: nowrap; font-weight: 550; touch-action: manipulation; }
+  .roots button.sel { background: var(--key-down); }
+  .crumbs { margin: 10px 2px 8px; font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+  .crumbs a { color: var(--accent); text-decoration: none; }
+  .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tools button, .tools label { touch-action: manipulation; }
+  label.btn { font-weight: 600; border-radius: 10px; background: var(--key); color: var(--accent); min-height: 44px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  label.btn input { display: none; }
+  .tools button { min-height: 44px; }
+  .list { margin-top: 10px; background: var(--surface); border-radius: 10px; overflow: hidden; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 0 6px 0 12px; min-height: 48px;
+    border-top: 1px solid var(--key); }
+  .row:first-child { border-top: 0; }
+  .row .ico { width: 22px; text-align: center; flex: none; }
+  .row .name { flex: 1; min-width: 0; overflow-wrap: anywhere; padding: 8px 0; color: var(--text); text-decoration: none; }
+  .row .size { color: var(--muted); font-size: 12.5px; flex: none; font-variant-numeric: tabular-nums; }
+  .row button.del { min-height: 40px; width: 40px; background: none; color: var(--muted); flex: none; touch-action: manipulation; }
+  .empty { color: var(--muted); padding: 14px; }
+  .up { margin-top: 8px; font-size: 13px; color: var(--muted); }
+  .up .bar { height: 4px; background: var(--key); border-radius: 2px; overflow: hidden; margin-top: 4px; }
+  .up .bar i { display: block; height: 100%; width: 0; background: var(--accent); }
+  .err { color: var(--bad); }
 </style>
 </head>
 <body>
@@ -61,6 +89,7 @@
     </div>
   </header>
 
+  <section id="remote">
   <div id="screenwrap">
     <canvas id="screen" width="320" height="170" aria-label="Pantalla del Cardputer"></canvas>
     <div id="overlay">Pantalla apagada. Toca para despertarla.</div>
@@ -80,6 +109,25 @@
   </div>
   <p class="hint">Mantén pulsado un botón para mantener la tecla (Esc largo sale de las apps).
     «Teclado» abre el del móvil para escribir. Con un teclado físico, escribe directamente.</p>
+  </section>
+  <p id="remoteoff" class="off" hidden>La pantalla remota está apagada. Se enciende en la app
+    <b>Remote</b> del Cardputer.</p>
+
+  <section id="filesec">
+    <h2>Archivos <small id="free"></small></h2>
+    <p id="filesoff" class="off" hidden>Compartir archivos está apagado. Se enciende en la app
+      <b>Remote</b> del Cardputer.</p>
+    <div id="filesui" hidden>
+      <div class="roots" id="roots"></div>
+      <div class="crumbs" id="crumbs"></div>
+      <div class="tools">
+        <label class="btn">Subir archivos<input type="file" id="upfile" multiple></label>
+        <button id="mkdir" type="button">Carpeta nueva</button>
+      </div>
+      <div id="uploads"></div>
+      <div class="list" id="list"></div>
+    </div>
+  </section>
   <textarea id="typer" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
 </main>
 
@@ -149,9 +197,10 @@ function connect() {
     chain = chain.then(() => paintBand(buf)).catch(() => {});
   };
   socket.onclose = () => {
-    setConn("Desconectado", "bad");
+    socket = null;
+    setConn(info && !info.screen ? "Apagada" : "Desconectado", "bad");
     releaseAll();
-    setTimeout(connect, retry);
+    if (!info || info.screen) setTimeout(connect, retry);
     retry = Math.min(retry * 2, 8000);
   };
 }
@@ -257,7 +306,136 @@ $("screenwrap").addEventListener("click", () => {
   if (brightness === 0) send({ t: "wake" }); else typer.focus();
 });
 
-connect();
+// --- Lo que está encendido (lo deciden los interruptores de la app Remote) ---
+
+let info = null;
+async function refreshInfo() {
+  try {
+    const r = await fetch("/api/info", { cache: "no-store" });
+    info = await r.json();
+  } catch (_) { return; }
+  $("remote").hidden = !info.screen;
+  $("remoteoff").hidden = info.screen;
+  if (info.screen && !socket) connect();
+  if (!info.screen && socket) socket.close();
+  $("filesui").hidden = !info.files;
+  $("filesoff").hidden = info.files;
+  if (info.files) {
+    if (!cur.root) { cur.root = info.roots[0].key; renderRoots(); loadDir(); }
+  } else { cur.root = null; $("free").textContent = ""; }
+}
+setInterval(refreshInfo, 10000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshInfo(); });
+
+// --- Archivos ---
+
+const cur = { root: null, path: "" };
+const api = (ep, extra = {}) => ep + "?" + new URLSearchParams({ root: cur.root, path: cur.path, ...extra });
+const esc = (t) => t.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function human(n) {
+  if (n < 1024) return n + " B";
+  const u = ["KB", "MB", "GB", "TB"]; let i = -1;
+  do { n /= 1024; i++; } while (n >= 1024 && i < u.length - 1);
+  return (n < 10 ? n.toFixed(1) : Math.round(n)) + " " + u[i];
+}
+async function call(ep, extra, opts) {
+  const r = await fetch(api(ep, extra), opts);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || ("Error " + r.status));
+  return j;
+}
+
+function renderRoots() {
+  $("roots").innerHTML = "";
+  for (const root of info.roots) {
+    const b = document.createElement("button");
+    b.textContent = root.label;
+    b.className = root.key === cur.root ? "sel" : "";
+    b.onclick = () => { cur.root = root.key; cur.path = ""; renderRoots(); loadDir(); };
+    $("roots").appendChild(b);
+  }
+}
+
+function renderCrumbs() {
+  const label = info.roots.find((r) => r.key === cur.root).label;
+  const parts = cur.path ? cur.path.split("/") : [];
+  let html = `<a href="#" data-p="">${esc(label)}</a>`;
+  parts.forEach((p, i) => { html += ` / <a href="#" data-p="${esc(parts.slice(0, i + 1).join("/"))}">${esc(p)}</a>`; });
+  $("crumbs").innerHTML = html;
+  $("crumbs").querySelectorAll("a").forEach((a) => a.onclick = (e) => { e.preventDefault(); cur.path = a.dataset.p; loadDir(); });
+}
+
+async function loadDir() {
+  renderCrumbs();
+  const list = $("list");
+  let data;
+  try { data = await call("/api/files"); }
+  catch (e) { list.innerHTML = `<div class="empty err">${esc(e.message)}</div>`; return; }
+  $("free").textContent = "libre: " + human(data.free);
+  list.innerHTML = data.entries.length ? "" : `<div class="empty">Vacía</div>`;
+  for (const ent of data.entries) {
+    const row = document.createElement("div");
+    row.className = "row";
+    const sub = cur.path ? cur.path + "/" + ent.name : ent.name;
+    if (ent.dir) {
+      row.innerHTML = `<span class="ico">📁</span><a class="name" href="#">${esc(ent.name)}</a>`;
+      row.querySelector("a").onclick = (e) => { e.preventDefault(); cur.path = sub; loadDir(); };
+    } else {
+      const href = "/api/download?" + new URLSearchParams({ root: cur.root, path: sub });
+      row.innerHTML = `<span class="ico">📄</span><a class="name" href="${href}" download>${esc(ent.name)}</a>` +
+        `<span class="size">${human(ent.size)}</span>`;
+    }
+    const del = document.createElement("button");
+    del.className = "del"; del.textContent = "🗑"; del.setAttribute("aria-label", "Borrar " + ent.name);
+    del.onclick = async () => {
+      if (!confirm(`¿Borrar «${ent.name}»${ent.dir ? " y todo lo que contiene" : ""}?`)) return;
+      try { await call("/api/delete", { path: sub }, { method: "POST" }); } catch (e) { alert(e.message); }
+      loadDir();
+    };
+    row.appendChild(del);
+    list.appendChild(row);
+  }
+}
+
+$("mkdir").onclick = async () => {
+  const name = prompt("Nombre de la carpeta nueva");
+  if (!name) return;
+  try { await call("/api/mkdir", { name }, { method: "POST" }); } catch (e) { alert(e.message); }
+  loadDir();
+};
+
+// Subir: de uno en uno (la tarjeta y la wifi no ganan nada en paralelo), con su barra.
+$("upfile").onchange = async (e) => {
+  const picked = [...e.target.files];
+  e.target.value = "";
+  for (const file of picked) await upload(file);
+  loadDir();
+};
+function upload(file) {
+  return new Promise((done) => {
+    const box = document.createElement("div");
+    box.className = "up";
+    box.innerHTML = `<span>${esc(file.name)} · ${human(file.size)}</span><div class="bar"><i></i></div>`;
+    $("uploads").appendChild(box);
+    const bar = box.querySelector("i");
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", api("/api/upload", { name: file.name }));
+    xhr.upload.onprogress = (ev) => { if (ev.lengthComputable) bar.style.width = (100 * ev.loaded / ev.total) + "%"; };
+    xhr.onload = () => {
+      if (xhr.status === 200) { box.remove(); }
+      else {
+        let msg = "Error " + xhr.status;
+        try { msg = JSON.parse(xhr.responseText).error || msg; } catch (_) {}
+        box.innerHTML = `<span class="err">${esc(file.name)}: ${esc(msg)}</span>`;
+      }
+      done();
+    };
+    xhr.onerror = () => { box.innerHTML = `<span class="err">${esc(file.name)}: se ha cortado</span>`; done(); };
+    xhr.send(file);
+  });
+}
+
+refreshInfo();
 </script>
 </body>
 </html>

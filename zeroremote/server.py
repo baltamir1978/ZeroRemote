@@ -1,23 +1,27 @@
 # SPDX-License-Identifier: MIT
-"""ZeroRemote: la pantalla del Cardputer Zero en el navegador, y su teclado.
+"""ZeroRemote: la pantalla del Cardputer Zero en el navegador, su teclado, y archivos.
 
 Un servidor HTTP + WebSocket con asyncio, sin dependencias. Sólo escucha en la IP de
 Tailscale del aparato (y rechaza cualquier cliente de fuera de 100.64.0.0/10): quien llega
 ya ha pasado por la red de Tailscale de Bruno, y en una wifi ajena nadie lo ve.
 
-Mientras no hay nadie conectado no lee la pantalla ni gasta nada: duerme en accept().
+Lo que está encendido lo deciden los interruptores de la app «Remote» (config.py): con los
+dos apagados no escucha en la red. Mientras no hay nadie conectado no lee la pantalla ni gasta
+nada: duerme en accept().
 """
 
 import argparse
 import asyncio
 import ipaddress
 import json
+import mimetypes
 import os
 import subprocess
 import sys
 import time
+import urllib.parse
 
-from . import keys, screen, ws
+from . import __version__, config, files, keys, screen, ws
 
 PORT = 8320
 WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
@@ -35,6 +39,11 @@ STATIC = {
     "/icon-192.png": ("icon-192.png", "image/png"),
     "/icon-512.png": ("icon-512.png", "image/png"),
 }
+
+
+REASONS = {200: "OK", 400: "Bad Request", 403: "Forbidden", 404: "Not Found", 405: "Method Not Allowed",
+           411: "Length Required", 500: "Internal Server Error", 507: "Insufficient Storage"}
+CHUNK = 64 * 1024
 
 
 def log(msg: str):
@@ -126,6 +135,10 @@ class ScreenFeed:
 class Server:
     def __init__(self, args):
         self.args = args
+        self.home = os.path.expanduser("~")
+        self.settings = config.Settings()
+        self.screen_clients = {}  # writer → IP, para cortarlos si se apaga la pantalla remota
+        self.last_client = ""
         self.feed = ScreenFeed(args.fb, args.fps)
         self.battery = find_battery()
         self.backlight = ""
@@ -155,35 +168,150 @@ class Server:
                 return
             request = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 10)
             lines = request.decode("latin-1").split("\r\n")
-            method, path, _ = (lines[0].split(" ") + ["", "", ""])[:3]
+            method, target, _ = (lines[0].split(" ") + ["", "", ""])[:3]
             headers = {}
             for line in lines[1:]:
                 if ":" in line:
                     k, v = line.split(":", 1)
                     headers[k.strip().lower()] = v.strip()
-            if method != "GET":
-                await self.reply(writer, 405, b"Method Not Allowed")
-            elif path == "/ws" and headers.get("upgrade", "").lower() == "websocket":
-                await self.websocket(reader, writer, headers, peer)
-            elif path.split("?")[0] in STATIC:
-                name, ctype = STATIC[path.split("?")[0]]
-                if name == "index.html":
-                    log(f"page requested: {peer[0]}")
-                await self.static(writer, name, ctype)
-            else:
-                await self.reply(writer, 404, b"Not Found")
+            url = urllib.parse.urlsplit(target)
+            path = url.path
+            query = {k: v[-1] for k, v in urllib.parse.parse_qs(url.query, keep_blank_values=True).items()}
+            try:
+                await self.route(method, path, query, headers, reader, writer, peer)
+            except files.FileError as e:
+                await self.reply_json(writer, {"error": e.message}, e.code)
+            except OSError as e:
+                log(f"{method} {path}: {e}")
+                await self.reply_json(writer, {"error": e.strerror or "Error de disco"}, 500)
         except (asyncio.IncompleteReadError, asyncio.TimeoutError, ConnectionError, asyncio.LimitOverrunError):
             pass
         finally:
             writer.close()
 
-    async def reply(self, writer, code: int, body: bytes, ctype: str = "text/plain"):
-        reason = {200: "OK", 404: "Not Found", 405: "Method Not Allowed"}.get(code, "")
+    async def route(self, method, path, query, headers, reader, writer, peer):
+        if path == "/ws" and method == "GET" and headers.get("upgrade", "").lower() == "websocket":
+            if not self.settings.screen:
+                await self.reply(writer, 403, b"Remote screen is off")
+            else:
+                await self.websocket(reader, writer, headers, peer)
+        elif path in STATIC and method == "GET":
+            name, ctype = STATIC[path]
+            if name == "index.html":
+                log(f"page requested: {peer[0]}")
+            await self.static(writer, name, ctype)
+        elif path == "/api/info" and method == "GET":
+            await self.reply_json(writer, {"version": __version__, "screen": self.settings.screen,
+                                           "files": self.settings.files,
+                                           "roots": [{"key": r["key"], "label": r["label"]} for r in files.roots(self.home)]})
+        elif path.startswith("/api/"):
+            if not self.settings.files:
+                raise files.FileError(403, "Compartir archivos está apagado (actívalo en Remote, en el Cardputer)")
+            handlers = {
+                ("GET", "/api/files"): self.api_list,
+                ("GET", "/api/download"): self.api_download,
+                ("POST", "/api/upload"): self.api_upload,
+                ("POST", "/api/mkdir"): self.api_mkdir,
+                ("POST", "/api/delete"): self.api_delete,
+            }
+            handler = handlers.get((method, path))
+            if handler is None:
+                raise files.FileError(404, "No existe")
+            await handler(query, headers, reader, writer, peer)
+        else:
+            await self.reply(writer, 404 if method == "GET" else 405, b"Not Found")
+
+    def send_head(self, writer, code: int, ctype: str, length: int, extra: str = ""):
         writer.write(
-            f"HTTP/1.1 {code} {reason}\r\nContent-Type: {ctype}\r\nContent-Length: {len(body)}\r\n"
-            "Cache-Control: no-cache\r\nConnection: close\r\n\r\n".encode() + body
+            f"HTTP/1.1 {code} {REASONS.get(code, '')}\r\nContent-Type: {ctype}\r\nContent-Length: {length}\r\n"
+            f"Cache-Control: no-cache\r\n{extra}Connection: close\r\n\r\n".encode()
         )
+
+    async def reply(self, writer, code: int, body: bytes, ctype: str = "text/plain"):
+        self.send_head(writer, code, ctype, len(body))
+        writer.write(body)
         await writer.drain()
+
+    async def reply_json(self, writer, obj, code: int = 200):
+        await self.reply(writer, code, json.dumps(obj, ensure_ascii=False).encode(), "application/json; charset=utf-8")
+
+    # --- Archivos ---
+
+    def _place(self, query):
+        """(carpeta raíz, ruta absoluta) de los parámetros root y path, comprobada."""
+        root = files.root_path(self.home, query.get("root", ""))
+        os.makedirs(root, exist_ok=True)  # Tracks, por ejemplo, no existe hasta grabar uno
+        return root, files.resolve(root, query.get("path", ""))
+
+    async def api_list(self, query, headers, reader, writer, peer):
+        root, folder = self._place(query)
+        usage = os.statvfs(folder)
+        await self.reply_json(writer, {"entries": files.list_dir(folder),
+                                       "free": usage.f_bavail * usage.f_frsize})
+
+    async def api_download(self, query, headers, reader, writer, peer):
+        root, path = self._place(query)
+        if not os.path.isfile(path):
+            raise files.FileError(404, "No existe")
+        name = os.path.basename(path)
+        size = os.path.getsize(path)
+        ctype = mimetypes.guess_type(name)[0] or "application/octet-stream"
+        # inline=1 para verla en el navegador (una foto); si no, se descarga.
+        disposition = "inline" if query.get("inline") == "1" else "attachment"
+        quoted = urllib.parse.quote(name)
+        log(f"download {name} ({size} B) to {peer[0]}")
+        with open(path, "rb") as f:
+            self.send_head(writer, 200, ctype, size, f"Content-Disposition: {disposition}; filename*=UTF-8''{quoted}\r\n")
+            while True:
+                chunk = f.read(CHUNK)
+                if not chunk:
+                    break
+                writer.write(chunk)
+                await writer.drain()
+
+    async def api_upload(self, query, headers, reader, writer, peer):
+        root, folder = self._place(query)
+        if not os.path.isdir(folder):
+            raise files.FileError(404, "La carpeta no existe")
+        name = files.check_name(query.get("name", ""))
+        try:
+            length = int(headers.get("content-length", ""))
+        except ValueError:
+            raise files.FileError(411, "Falta el tamaño")
+        files.check_space(folder, length)
+        dest = files.unique_path(folder, name)
+        part = dest + ".part"  # oculto en los listados; si se corta, se borra
+        log(f"upload {os.path.basename(dest)} ({length} B) from {peer[0]}")
+        try:
+            with open(part, "wb") as f:
+                remaining = length
+                while remaining > 0:
+                    chunk = await asyncio.wait_for(reader.read(min(CHUNK, remaining)), 60)
+                    if not chunk:
+                        raise asyncio.IncompleteReadError(b"", remaining)
+                    f.write(chunk)
+                    remaining -= len(chunk)
+                    if not self.settings.files:
+                        raise files.FileError(403, "Se ha apagado compartir archivos")
+            os.replace(part, dest)
+        finally:
+            if os.path.exists(part):
+                os.remove(part)
+        await self.reply_json(writer, {"ok": True, "name": os.path.basename(dest)})
+
+    async def api_mkdir(self, query, headers, reader, writer, peer):
+        root, folder = self._place(query)
+        path = os.path.join(folder, files.check_name(query.get("name", "")))
+        if os.path.exists(path):
+            raise files.FileError(400, "Ya existe")
+        os.mkdir(path)
+        await self.reply_json(writer, {"ok": True})
+
+    async def api_delete(self, query, headers, reader, writer, peer):
+        root, path = self._place(query)
+        log(f"delete {os.path.relpath(path, root)} in {query.get('root')} from {peer[0]}")
+        await asyncio.to_thread(files.delete, path, root)
+        await self.reply_json(writer, {"ok": True})
 
     async def static(self, writer, name: str, ctype: str):
         with open(os.path.join(WEB_DIR, name), "rb") as f:
@@ -196,6 +324,8 @@ class Server:
         )
         await writer.drain()
         log(f"client connected: {peer[0]}")
+        self.screen_clients[writer] = peer[0]
+        self.last_client = peer[0]
         pressed = set()  # lo que ha pulsado este cliente, para soltarlo si se va
         status_soon = asyncio.Event()  # tras una tecla, el estado (brillo) enseguida
         self.feed.join()
@@ -205,6 +335,7 @@ class Server:
         finally:
             sender.cancel()
             self.feed.leave()
+            self.screen_clients.pop(writer, None)
             if self.keyboard:
                 for code in pressed:
                     self.keyboard.set(code, False)
@@ -301,16 +432,53 @@ def tailscale_ip(timeout_s: float = 0) -> str:
 
 
 async def main_async(args):
+    """Vigila los interruptores cada 2 s: abre o cierra el puerto, corta a quien ya no toca y
+    deja el estado para la app."""
     server = Server(args)
-    hosts = args.listen or [tailscale_ip(timeout_s=600)]
-    hosts = [h for h in hosts if h]
-    if not hosts:
-        log("no Tailscale IP and no --listen: nothing to listen on")
-        sys.exit(1)
-    srv = await asyncio.start_server(server.handle, hosts, args.port)
-    log("listening on " + ", ".join(f"http://{h}:{args.port}/" for h in hosts))
-    async with srv:
-        await srv.serve_forever()
+    conf_path = config.config_path()
+    status_path = config.status_path()
+    conf_mtime = None
+    srv = None
+    hosts = []
+    while True:
+        m = config.mtime(conf_path)
+        if m != conf_mtime:
+            conf_mtime = m
+            new = config.load(conf_path)
+            if new != server.settings:
+                log(f"settings: screen={'on' if new.screen else 'off'} files={'on' if new.files else 'off'}")
+            if not new.screen:
+                for w in list(server.screen_clients):
+                    w.close()  # la pantalla remota se ha apagado: fuera los que miraban
+            server.settings = new
+
+        if server.settings.any and srv is None:
+            hosts = [h for h in (args.listen or [await asyncio.to_thread(tailscale_ip)]) if h]
+            if hosts:
+                try:
+                    srv = await asyncio.start_server(server.handle, hosts, args.port)
+                    log("listening on " + ", ".join(f"http://{h}:{args.port}/" for h in hosts))
+                except OSError as e:
+                    log(f"cannot listen: {e}")
+        elif not server.settings.any and srv is not None:
+            srv.close()
+            for w in list(server.screen_clients):
+                w.close()
+            srv = None
+            log("both off: not listening")
+
+        try:
+            config.write_status(status_path, {
+                "listening": 1 if srv else 0,
+                "url": f"http://{hosts[0]}:{args.port}/" if srv and hosts else "",
+                "screen": "on" if server.settings.screen else "off",
+                "files": "on" if server.settings.files else "off",
+                "clients": len(server.screen_clients),
+                "last_client": server.last_client,
+            })
+        except OSError as e:
+            log(f"status: {e}")
+        await asyncio.sleep(2)
 
 
 def main(argv=None):
