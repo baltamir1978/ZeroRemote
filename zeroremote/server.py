@@ -285,14 +285,20 @@ class Server:
         ctype = mimetypes.guess_type(name)[0] or "application/octet-stream"
         if ctype.startswith("text/"):
             ctype += "; charset=utf-8"
-        # inline=1 para abrirlo en el navegador (foto, audio, vídeo, texto); si no, se descarga.
-        inline = query.get("inline") == "1"
+        # inline=1 para abrirlo en el navegador; si no, se descarga. Lo que se abre lo ha subido
+        # alguien, así que sólo tipos que no ejecutan nada (con nosniff, el navegador no los toma
+        # por otra cosa). El SVG puede llevar código: se abre en una página sin scripts
+        # (sandbox). Lo demás (HTML incluido) se descarga siempre. Al audio y al vídeo no se les
+        # puede poner sandbox: Chrome los enseña en una página con su reproductor, que con
+        # sandbox pasa a ser «de otro origen» y no puede pedir el archivo.
+        svg = ctype.startswith("image/svg")
+        safe = (ctype.startswith(("image/", "audio/", "video/", "text/plain", "application/pdf", "application/json"))
+                and not svg)
+        inline = query.get("inline") == "1" and (safe or svg)
         extra = f"Content-Disposition: {'inline' if inline else 'attachment'}; filename*=UTF-8''{urllib.parse.quote(name)}\r\n"
         extra += "Accept-Ranges: bytes\r\nX-Content-Type-Options: nosniff\r\n"
-        if inline:
-            # Lo que se abre aquí lo ha subido alguien: sin scripts (un .html o un .svg con código
-            # correría con permiso para usar la API).
-            extra += "Content-Security-Policy: sandbox; default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'\r\n"
+        if inline and svg:
+            extra += "Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline'\r\n"
         span = files.parse_range(headers.get("range", ""), size)
         start, end = span if span else (0, size - 1)
         length = max(end - start + 1, 0)

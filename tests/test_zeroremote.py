@@ -360,7 +360,16 @@ class FileApiTest(unittest.TestCase):
         code, body, h = self.call("GET", "/api/download", root="videos", path="clip.mp4", inline="1")
         self.assertEqual((code, body), (200, data))
         self.assertTrue(h["Content-Disposition"].startswith("inline"))
-        self.assertIn("sandbox", h["Content-Security-Policy"])
+        # Sin sandbox: el reproductor de Chrome no podría pedir el vídeo (pasaba en 0.4.1).
+        self.assertNotIn("Content-Security-Policy", h)
+        # Lo que puede llevar código: el HTML se descarga siempre; el SVG se abre sin scripts.
+        self.call("POST", "/api/upload", b"<script>1</script>", root="videos", path="", name="x.html")
+        hh = self.call("GET", "/api/download", root="videos", path="x.html", inline="1")[2]
+        self.assertTrue(hh["Content-Disposition"].startswith("attachment"))
+        self.call("POST", "/api/upload", b"<svg/>", root="videos", path="", name="x.svg")
+        hs = self.call("GET", "/api/download", root="videos", path="x.svg", inline="1")[2]
+        self.assertTrue(hs["Content-Disposition"].startswith("inline"))
+        self.assertIn("sandbox", hs["Content-Security-Policy"])
         self.assertEqual((h["Content-Type"], h["Accept-Ranges"]), ("video/mp4", "bytes"))
         # Un tramo, como pide el reproductor de vídeo para adelantar.
         req = urllib.request.Request(f"http://127.0.0.1:{self.port}/api/download?root=videos&path=clip.mp4",

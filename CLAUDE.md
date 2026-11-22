@@ -106,8 +106,11 @@ Tools/instalar.sh                                  # todo lo anterior + instalar
 - **0.4.1 (22-nov-2026) — abrir archivos en el navegador y botón ⬇.** Lo pidió Bruno. El
   nombre abre en otra pestaña lo que el navegador sabe enseñar (por extensión, `KINDS` en la
   web); lo demás se descarga. `api_download` atiende tramos (`Range`, 206/416: los
-  reproductores lo necesitan para adelantar) y lo que se abre va con `Content-Security-Policy:
-  sandbox` (sin scripts: un .html o .svg subido correría con acceso a la API). Tipos añadidos a
+  reproductores lo necesitan para adelantar). Sólo se abren tipos que no ejecutan nada (imagen,
+  audio, vídeo, texto plano, PDF, JSON, con `nosniff`); el SVG, con `CSP: sandbox`; el HTML se
+  descarga siempre. **Al audio y al vídeo no se les puede poner sandbox** (0.4.1 lo hacía y no
+  se reproducían): Chrome los enseña en una página con `<video crossorigin="anonymous">` que con
+  sandbox es de origen opaco y no puede pedir el archivo. Arreglado en 0.4.3. Tipos añadidos a
   `mimetypes` (.md/.log/.csv como texto, .m4a, .opus, .flac, .webp, .avif). Probado: tramos en
   el aparato con MP4, MP3, JPG y MD; foto y reproductor de vídeo en Chrome.
 - **0.4.0 (22-nov-2026) — modo claro/oscuro; preparada para publicar.** Botón ☀/☾ junto al
