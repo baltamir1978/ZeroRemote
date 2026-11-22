@@ -99,6 +99,14 @@ Tools/instalar.sh                                  # todo lo anterior + instalar
 
 ## Estado
 
+- **0.3.1 (22-nov-2026) — la página ya no se mueve.** Bruno notó que se desplazaba unos
+  milímetros arriba y abajo (y un toque podía caer donde no era). Dos causas: los textos de
+  estado de la cabecera cambiaban de una a dos líneas según su largo, y sobre la pantalla
+  `touch-action: manipulation` dejaba que un toque con el dedo algo movido desplazara la
+  página. Ahora la cabecera tiene dos filas de alto fijo (medido en Chrome a 360 y 412 px: 54 px
+  y la pantalla a la misma altura con cualquier texto), la pantalla tiene `touch-action: none`
+  y la página `overscroll-behavior: none`. Regla: **nada por encima de la pantalla puede
+  cambiar de alto con datos que se actualizan.**
 - **0.3.0 (22-nov-2026) — interruptores en la web y ENTER en el centro.** Lo pidió Bruno.
   Probado en el aparato: desde la pantalla apagada, toques hasta Remote y abrirla sólo con
   toques; apagar y encender «File sharing» desde la web se ve en la app en ~1,5 s.
