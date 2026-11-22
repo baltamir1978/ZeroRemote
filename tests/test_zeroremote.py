@@ -130,7 +130,7 @@ class StatusTest(unittest.TestCase):
     def test_only_tailnet_and_loopback_clients(self):
         srv = server.Server.__new__(server.Server)
         srv.args = SimpleNamespace(any_client=False)
-        self.assertTrue(srv.allowed(("100.127.188.111", 5000)))
+        self.assertTrue(srv.allowed(("100.101.102.103", 5000)))
         self.assertTrue(srv.allowed(("127.0.0.1", 5000)))
         self.assertFalse(srv.allowed(("192.168.1.20", 5000)))
         self.assertFalse(srv.allowed(("8.8.8.8", 5000)))

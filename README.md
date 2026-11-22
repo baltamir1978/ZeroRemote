@@ -9,8 +9,10 @@ http://cpzero:8320/
 ```
 
 Si el nombre no resuelve en el móvil (pasa con el «DNS privado» de Android, que se salta el
-de Tailscale), con la IP de Tailscale del aparato: `http://100.66.95.5:8320/`, escrito con
-`http://` delante. Se puede añadir a la pantalla de inicio desde el menú del navegador.
+de Tailscale), con la IP de Tailscale del aparato (la da `tailscale ip -4`):
+`http://100.x.y.z:8320/`, escrito con `http://` delante. Se puede añadir a la pantalla de inicio desde el menú del navegador.
+
+<p align="center"><img src="docs/captura.png" alt="ZeroRemote en un móvil: la pantalla del Cardputer con el lanzador y los botones de teclas" width="320"></p>
 
 ## Qué hace
 
