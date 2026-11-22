@@ -375,8 +375,11 @@ class Server:
                     status_soon.clear()
                     next_status = 0.0
                 if frame is not None:
-                    for y, rows in screen.changed_bands(last, frame):
+                    bands = screen.changed_bands(last, frame)
+                    for y, rows in bands:
                         writer.write(ws.encode_frame(screen.encode_band(frame, y, rows), ws.OP_BINARY))
+                    if bands:
+                        writer.write(ws.encode_frame(screen.FRAME_END, ws.OP_BINARY))
                     last = frame
                 now = time.monotonic()
                 if now >= next_status:

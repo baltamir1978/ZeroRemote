@@ -18,6 +18,10 @@ WIDTH, HEIGHT, BPP = 320, 170, 2
 STRIDE = WIDTH * BPP
 FRAME_BYTES = STRIDE * HEIGHT
 MSG_BAND = 1
+# Tras las franjas de cada imagen nueva, un mensaje de un byte: la web cuenta las imágenes
+# completas (los FPS de verdad: una imagen puede llegar en varias franjas).
+MSG_FRAME_END = 2
+FRAME_END = bytes([MSG_FRAME_END])
 
 
 def read_frame(path: str = "/dev/fb0") -> bytes:

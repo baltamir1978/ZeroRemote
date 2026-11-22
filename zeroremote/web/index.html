@@ -177,7 +177,7 @@ for (let p = 0; p < 65536; p++) {
 
 let socket = null, retry = 500, brightness = null;
 let chain = Promise.resolve();          // las franjas se pintan en orden
-let bytes = 0, updates = 0;
+let bytes = 0, frames = 0;
 
 async function inflate(data) {
   const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate"));
@@ -193,7 +193,6 @@ async function paintBand(buf) {
   const base = y * W;
   for (let i = 0; i < src.length; i++) pixels[base + i] = lut[src[i]];
   ctx.putImageData(image, 0, 0, 0, y, W, rows);
-  updates++;
 }
 
 function setConn(text, cls) { const c = $("conn"); c.textContent = text; c.className = "chip " + cls; }
@@ -221,6 +220,8 @@ function connect() {
     }
     bytes += ev.data.byteLength;
     const buf = ev.data;
+    // Fin de imagen (1 byte, tipo 2): se cuenta cuando sus franjas ya están pintadas.
+    if (buf.byteLength === 1 && new Uint8Array(buf)[0] === 2) { chain = chain.then(() => { frames++; }); return; }
     chain = chain.then(() => paintBand(buf)).catch(() => {});
   };
   socket.onclose = () => {
@@ -233,8 +234,10 @@ function connect() {
 }
 
 setInterval(() => {
-  $("rate").textContent = updates + " act/s · " + (bytes / 1024).toFixed(0) + " KB/s";
-  bytes = 0; updates = 0;
+  // Imágenes completas pintadas en el último segundo. Con la pantalla quieta es 0: no hay
+  // nada nuevo que mandar. El tope es lo que lee el servicio (--fps, 20 por defecto).
+  $("rate").textContent = frames + " fps · " + (bytes / 1024).toFixed(0) + " KB/s";
+  bytes = 0; frames = 0;
 }, 1000);
 
 // --- Teclas ---

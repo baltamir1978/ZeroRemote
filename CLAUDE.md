@@ -99,6 +99,10 @@ Tools/instalar.sh                                  # todo lo anterior + instalar
 
 ## Estado
 
+- **0.3.2 (22-nov-2026) — contador de FPS.** Lo pidió Bruno. Cuenta imágenes completas
+  pintadas (marca de fin de imagen), no franjas: medido, 140 franjas eran 77 imágenes. 20 fps
+  en el desbloqueo (el tope, `--fps`), 5-11 pasando apps en el lanzador; 0 con la pantalla
+  quieta.
 - **0.3.1 (22-nov-2026) — la página ya no se mueve.** Bruno notó que se desplazaba unos
   milímetros arriba y abajo (y un toque podía caer donde no era). Dos causas: los textos de
   estado de la cabecera cambiaban de una a dos líneas según su largo, y sobre la pantalla
