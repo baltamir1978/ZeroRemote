@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101418">
+<title>ZeroRemote</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --surface: #ffffff; --text: #15181c; --muted: #5d6670;
+    --key: #e7eaee; --key-text: #15181c; --key-down: #9fd8c6; --accent: #1d8f6e;
+    --warn: #b26a00; --bad: #b3261e; --frame: #15181c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101418; --surface: #181d22; --text: #e8eaed; --muted: #9aa3ad;
+      --key: #252c33; --key-text: #e8eaed; --key-down: #2f6e5b; --accent: #5ad1a8;
+      --warn: #f0b04a; --bad: #f2a29c; --frame: #000;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 12px 16px calc(16px + env(safe-area-inset-bottom)); }
+  header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  h1 { font-size: 17px; margin: 0; font-weight: 650; }
+  .chips { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .chip { font-size: 12.5px; padding: 3px 9px; border-radius: 99px; background: var(--key); color: var(--muted);
+    white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .chip.ok { color: var(--accent); } .chip.warn { color: var(--warn); } .chip.bad { color: var(--bad); }
+  #screenwrap { position: relative; background: var(--frame); border-radius: 10px; padding: 6px;
+    aspect-ratio: 332 / 182; touch-action: manipulation; }
+  canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; border-radius: 4px; }
+  #overlay { position: absolute; inset: 6px; display: none; align-items: center; justify-content: center;
+    text-align: center; color: #cfd6dc; font-size: 14px; background: rgba(0,0,0,.55); border-radius: 4px; padding: 12px; }
+  #overlay.show { display: flex; }
+  .keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+  button { font: inherit; font-weight: 600; border: 0; border-radius: 10px; background: var(--key);
+    color: var(--key-text); min-height: 48px; padding: 0 6px; touch-action: none; user-select: none;
+    -webkit-user-select: none; }
+  button.down { background: var(--key-down); }
+  button.wide { grid-column: span 2; }
+  button.accent { color: var(--accent); }
+  .hint { color: var(--muted); font-size: 13px; margin: 12px 2px 0; }
+  #typer { position: fixed; left: -100px; top: 0; width: 40px; height: 30px; opacity: 0; font-size: 16px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>ZeroRemote</h1>
+    <div class="chips">
+      <span id="conn" class="chip bad">Desconectado</span>
+      <span id="bat" class="chip">—</span>
+      <span id="rate" class="chip">—</span>
+    </div>
+  </header>
+
+  <div id="screenwrap">
+    <canvas id="screen" width="320" height="170" aria-label="Pantalla del Cardputer"></canvas>
+    <div id="overlay">Pantalla apagada. Toca para despertarla.</div>
+  </div>
+
+  <div class="keys" id="keys">
+    <button data-code="1">Esc</button>
+    <button data-code="15">Tab</button>
+    <button data-code="103" aria-label="Arriba">↑</button>
+    <button data-code="14" aria-label="Borrar">⌫</button>
+    <button data-code="105" aria-label="Izquierda">←</button>
+    <button data-code="108" aria-label="Abajo">↓</button>
+    <button data-code="106" aria-label="Derecha">→</button>
+    <button data-code="28">Enter</button>
+    <button data-code="57" class="wide">Espacio</button>
+    <button id="kbd" class="wide accent" type="button">Teclado</button>
+  </div>
+  <p class="hint">Mantén pulsado un botón para mantener la tecla (Esc largo sale de las apps).
+    «Teclado» abre el del móvil para escribir. Con un teclado físico, escribe directamente.</p>
+  <textarea id="typer" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+</main>
+
+<script>
+"use strict";
+const W = 320, H = 170;
+const canvas = document.getElementById("screen");
+const ctx = canvas.getContext("2d");
+const image = ctx.createImageData(W, H);
+const pixels = new Uint32Array(image.data.buffer);
+const $ = (id) => document.getElementById(id);
+
+// RGB565 → RGBA (en memoria: 0xAABBGGRR, little endian). Tabla de 65536 colores: con ella
+// pintar una franja es un acceso por píxel.
+const lut = new Uint32Array(65536);
+for (let p = 0; p < 65536; p++) {
+  const r = (p >> 11) & 31, g = (p >> 5) & 63, b = p & 31;
+  lut[p] = 0xff000000 | (((b << 3) | (b >> 2)) << 16) | (((g << 2) | (g >> 4)) << 8) | ((r << 3) | (r >> 2));
+}
+
+let socket = null, retry = 500, brightness = null;
+let chain = Promise.resolve();          // las franjas se pintan en orden
+let bytes = 0, updates = 0;
+
+async function inflate(data) {
+  const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+async function paintBand(buf) {
+  const view = new DataView(buf);
+  if (view.getUint8(0) !== 1) return;
+  const y = view.getUint16(1, true), rows = view.getUint16(3, true);
+  const raw = await inflate(new Uint8Array(buf, 5));
+  const src = new Uint16Array(raw.buffer, raw.byteOffset, raw.byteLength >> 1);
+  const base = y * W;
+  for (let i = 0; i < src.length; i++) pixels[base + i] = lut[src[i]];
+  ctx.putImageData(image, 0, 0, 0, y, W, rows);
+  updates++;
+}
+
+function setConn(text, cls) { const c = $("conn"); c.textContent = text; c.className = "chip " + cls; }
+
+function onStatus(s) {
+  brightness = s.brightness;
+  $("overlay").classList.toggle("show", brightness === 0);
+  const bat = $("bat");
+  if (s.battery == null) { bat.textContent = "—"; return; }
+  const draw = s.charging ? "cargando" : (s.draw_ma != null ? s.draw_ma + " mA" : "");
+  bat.textContent = s.battery + " %" + (draw ? " · " + draw : "");
+  bat.className = "chip " + (s.charging ? "ok" : s.battery <= 15 ? "bad" : s.battery <= 30 ? "warn" : "");
+}
+
+function connect() {
+  const url = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws";
+  socket = new WebSocket(url);
+  socket.binaryType = "arraybuffer";
+  setConn("Conectando…", "warn");
+  socket.onopen = () => { retry = 500; setConn("Conectado", "ok"); };
+  socket.onmessage = (ev) => {
+    if (typeof ev.data === "string") {
+      try { const m = JSON.parse(ev.data); if (m.t === "status") onStatus(m); } catch (_) {}
+      return;
+    }
+    bytes += ev.data.byteLength;
+    const buf = ev.data;
+    chain = chain.then(() => paintBand(buf)).catch(() => {});
+  };
+  socket.onclose = () => {
+    setConn("Desconectado", "bad");
+    releaseAll();
+    setTimeout(connect, retry);
+    retry = Math.min(retry * 2, 8000);
+  };
+}
+
+setInterval(() => {
+  $("rate").textContent = updates + " act/s · " + (bytes / 1024).toFixed(0) + " KB/s";
+  bytes = 0; updates = 0;
+}, 1000);
+
+// --- Teclas ---
+
+function send(msg) { if (socket && socket.readyState === 1) socket.send(JSON.stringify(msg)); }
+const held = new Set();
+function keyDown(code) { if (!held.has(code)) { held.add(code); send({ t: "key", code, down: true }); } }
+function keyUp(code) { if (held.delete(code)) send({ t: "key", code, down: false }); }
+function tap(code) { send({ t: "tap", code }); }
+function releaseAll() { for (const c of [...held]) keyUp(c); document.querySelectorAll("button.down").forEach(b => b.classList.remove("down")); }
+
+// Botones: pulsar = tecla abajo, soltar = arriba (así Esc largo funciona).
+document.querySelectorAll("#keys button[data-code]").forEach((b) => {
+  const code = +b.dataset.code;
+  const up = () => { b.classList.remove("down"); keyUp(code); };
+  b.addEventListener("pointerdown", (e) => { e.preventDefault(); b.setPointerCapture(e.pointerId); b.classList.add("down"); keyDown(code); });
+  b.addEventListener("pointerup", up);
+  b.addEventListener("pointercancel", up);
+  b.addEventListener("contextmenu", (e) => e.preventDefault());
+});
+
+// Códigos de Linux (linux/input-event-codes.h). El teclado del Cardputer no tiene «-» ni «=»
+// normales: «-», «+» y «*» van por sus teclas del teclado numérico, que sí tiene.
+const SHIFT = 42;
+const byCode = {
+  Escape: 1, Digit1: 2, Digit2: 3, Digit3: 4, Digit4: 5, Digit5: 6, Digit6: 7, Digit7: 8, Digit8: 9,
+  Digit9: 10, Digit0: 11, Minus: 74, Backspace: 14, Tab: 15, KeyQ: 16, KeyW: 17, KeyE: 18, KeyR: 19,
+  KeyT: 20, KeyY: 21, KeyU: 22, KeyI: 23, KeyO: 24, KeyP: 25, BracketLeft: 26, BracketRight: 27,
+  Enter: 28, NumpadEnter: 28, ControlLeft: 29, ControlRight: 29, KeyA: 30, KeyS: 31, KeyD: 32,
+  KeyF: 33, KeyG: 34, KeyH: 35, KeyJ: 36, KeyK: 37, KeyL: 38, Semicolon: 39, Quote: 40,
+  Backquote: 41, ShiftLeft: 42, ShiftRight: 42, Backslash: 43, KeyZ: 44, KeyX: 45, KeyC: 46,
+  KeyV: 47, KeyB: 48, KeyN: 49, KeyM: 50, Comma: 51, Period: 52, Slash: 53, AltLeft: 56,
+  AltRight: 56, Space: 57, CapsLock: 58, F1: 59, F2: 60, F3: 61, F4: 62, F5: 63, F6: 64, F7: 65,
+  F8: 66, F9: 67, F10: 68, NumpadSubtract: 74, NumpadAdd: 78, NumpadMultiply: 55, Home: 102,
+  ArrowUp: 103, PageUp: 104, ArrowLeft: 105, ArrowRight: 106, End: 107, ArrowDown: 108,
+  PageDown: 109, Insert: 110, Delete: 111,
+};
+// Carácter → [código, ¿con mayúsculas?] para lo que llega del teclado del móvil.
+const byChar = {};
+"abcdefghijklmnopqrstuvwxyz".split("").forEach((c) => {
+  const code = byCode["Key" + c.toUpperCase()];
+  byChar[c] = [code, false]; byChar[c.toUpperCase()] = [code, true];
+});
+"1234567890".split("").forEach((c) => (byChar[c] = [byCode["Digit" + c], false]));
+Object.assign(byChar, {
+  " ": [57, false], "\n": [28, false], "\t": [15, false], "-": [74, false], "+": [78, false],
+  "*": [55, false], "[": [26, false], "]": [27, false], ";": [39, false], "'": [40, false],
+  "`": [41, false], "\\": [43, false], ",": [51, false], ".": [52, false], "/": [53, false],
+  "!": [2, true], "@": [3, true], "#": [4, true], "$": [5, true], "%": [6, true], "^": [7, true],
+  "&": [8, true], "(": [10, true], ")": [11, true], "_": [74, true], "{": [26, true], "}": [27, true],
+  ":": [39, true], '"': [40, true], "~": [41, true], "|": [43, true], "<": [51, true], ">": [52, true],
+  "?": [53, true],
+});
+
+function typeChar(ch) {
+  const k = byChar[ch];
+  if (!k) return;
+  if (k[1]) keyDown(SHIFT);
+  tap(k[0]);
+  if (k[1]) keyUp(SHIFT);
+}
+
+// Teclado físico (portátil, o uno Bluetooth en el móvil): tecla a tecla, con su soltar.
+function physical(e) {
+  if (e.isComposing || e.key === "Unidentified" || e.keyCode === 229) return false;
+  const code = byCode[e.code];
+  if (code === undefined) return false;
+  e.preventDefault();
+  if (e.type === "keydown") { if (!e.repeat) keyDown(code); } else keyUp(code);
+  return true;
+}
+window.addEventListener("keydown", physical);
+window.addEventListener("keyup", physical);
+window.addEventListener("blur", releaseAll);
+
+// Teclado del móvil: en Android no da teclas fiables (keyCode 229), sí el texto que escribe.
+const typer = $("typer");
+typer.addEventListener("beforeinput", (e) => {
+  e.preventDefault();
+  if (e.inputType === "insertText" || e.inputType === "insertReplacementText") {
+    for (const ch of e.data || "") typeChar(ch);
+  } else if (e.inputType === "insertLineBreak" || e.inputType === "insertParagraph") {
+    tap(28);
+  } else if (e.inputType.startsWith("deleteContentBackward")) {
+    tap(14);
+  }
+});
+typer.addEventListener("input", () => { typer.value = ""; });
+$("kbd").addEventListener("click", () => {
+  if (document.activeElement === typer) typer.blur(); else typer.focus();
+});
+
+// Tocar la pantalla: si está apagada, Mayúsculas (despierta sin hacer nada más); si no, abre
+// el teclado del móvil.
+$("screenwrap").addEventListener("click", () => {
+  if (brightness === 0) send({ t: "wake" }); else typer.focus();
+});
+
+connect();
+</script>
+</body>
+</html>

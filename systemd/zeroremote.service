@@ -1,0 +1,13 @@
+[Unit]
+Description=ZeroRemote: la pantalla y el teclado del Cardputer en el navegador (puerto 8320, sólo Tailscale)
+
+[Service]
+# Servicio de usuario (el del lanzador): el usuario está en los grupos video (pantalla) e
+# input (teclado), así que no hace falta root. Espera solo a que Tailscale tenga IP.
+WorkingDirectory=%h/.local/share/zeroremote
+ExecStart=/usr/bin/python3 -m zeroremote
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
