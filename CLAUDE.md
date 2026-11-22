@@ -108,8 +108,8 @@ Tools/instalar.sh                                  # todo lo anterior + instalar
   estado de la cabecera cambiaban de una a dos líneas según su largo, y sobre la pantalla
   `touch-action: manipulation` dejaba que un toque con el dedo algo movido desplazara la
   página. Ahora la cabecera tiene dos filas de alto fijo (medido en Chrome a 360 y 412 px: 54 px
-  y la pantalla a la misma altura con cualquier texto), la pantalla tiene `touch-action: none`
-  y la página `overscroll-behavior: none`. Regla: **nada por encima de la pantalla puede
+  y la pantalla a la misma altura con cualquier texto) y la pantalla tiene `touch-action: none`.
+  (En 0.3.3 se quitó `overscroll-behavior: none`: también anulaba el «tirar para recargar».) Regla: **nada por encima de la pantalla puede
   cambiar de alto con datos que se actualizan.**
 - **0.3.0 (22-nov-2026) — interruptores en la web y ENTER en el centro.** Lo pidió Bruno.
   Probado en el aparato: desde la pantalla apagada, toques hasta Remote y abrirla sólo con
