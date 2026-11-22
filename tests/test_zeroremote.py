@@ -137,5 +137,11 @@ class StatusTest(unittest.TestCase):
         self.assertFalse(srv.allowed(None))
 
 
+class StaticTest(unittest.TestCase):
+    def test_every_static_file_exists(self):
+        for name, _ in server.STATIC.values():
+            self.assertTrue(os.path.isfile(os.path.join(server.WEB_DIR, name)), name)
+
+
 if __name__ == "__main__":
     unittest.main()

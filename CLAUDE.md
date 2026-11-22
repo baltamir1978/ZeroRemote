@@ -16,6 +16,10 @@ lógica pura con pruebas) y que el repositorio sería **público**. La página e
   cambian), `keys.py` (escribir `input_event` en el teclado), `server.py` (asyncio: HTTP,
   WebSocket, estado del aparato, `wake`). Página en `zeroremote/web/index.html`, sin
   dependencias.
+- Icono: dibujo propio de un Cardputer Zero (no foto ni logo de M5Stack), generado con
+  `Tools/generar_icono.py` (SVG + PNG de 32/180/192/512 con ImageMagick, que **no pinta
+  `stroke`**: los contornos van con rellenos). `manifest.webmanifest` para la pantalla de
+  inicio; el servidor sólo sirve lo que hay en `STATIC`.
 - Protocolo: binario = franja (`<BHH` tipo 1, fila, nº de filas + zlib de RGB565); texto =
   JSON. Del navegador: `{"t":"key","code":n,"down":bool}`, `{"t":"tap","code":n}`,
   `{"t":"wake"}`. Del servidor: `{"t":"status",battery,charging,draw_ma,brightness}` cada 3 s

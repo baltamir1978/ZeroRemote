@@ -22,6 +22,19 @@ from . import keys, screen, ws
 PORT = 8320
 WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 TAILNET = ipaddress.ip_network("100.64.0.0/10")
+# Lo que se sirve tal cual de web/ (nada más: ni listados ni rutas con «..»).
+STATIC = {
+    "/": ("index.html", "text/html; charset=utf-8"),
+    "/index.html": ("index.html", "text/html; charset=utf-8"),
+    "/manifest.webmanifest": ("manifest.webmanifest", "application/manifest+json"),
+    "/icon.svg": ("icon.svg", "image/svg+xml"),
+    "/favicon.ico": ("icon-32.png", "image/png"),
+    "/icon-32.png": ("icon-32.png", "image/png"),
+    "/icon-180.png": ("icon-180.png", "image/png"),
+    "/apple-touch-icon.png": ("icon-180.png", "image/png"),
+    "/icon-192.png": ("icon-192.png", "image/png"),
+    "/icon-512.png": ("icon-512.png", "image/png"),
+}
 
 
 def log(msg: str):
@@ -152,9 +165,11 @@ class Server:
                 await self.reply(writer, 405, b"Method Not Allowed")
             elif path == "/ws" and headers.get("upgrade", "").lower() == "websocket":
                 await self.websocket(reader, writer, headers, peer)
-            elif path in ("/", "/index.html"):
-                log(f"page requested: {peer[0]}")
-                await self.static(writer, "index.html", "text/html; charset=utf-8")
+            elif path.split("?")[0] in STATIC:
+                name, ctype = STATIC[path.split("?")[0]]
+                if name == "index.html":
+                    log(f"page requested: {peer[0]}")
+                await self.static(writer, name, ctype)
             else:
                 await self.reply(writer, 404, b"Not Found")
         except (asyncio.IncompleteReadError, asyncio.TimeoutError, ConnectionError, asyncio.LimitOverrunError):
