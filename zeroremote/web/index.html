@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#101418">
+<script>
+  // El tema elegido con el botón (claro u oscuro), antes de pintar nada: sin destello del otro.
+  try { const t = localStorage.getItem("zeroremote-theme"); if (t) document.documentElement.dataset.theme = t; } catch (_) {}
+</script>
 <title>ZeroRemote</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="icon" href="icon-32.png" sizes="32x32" type="image/png">
@@ -16,12 +20,18 @@
     --key: #e7eaee; --key-text: #15181c; --key-down: #9fd8c6; --accent: #1d8f6e;
     --warn: #b26a00; --bad: #b3261e; --frame: #15181c;
   }
+  /* Oscuro: el del sistema, salvo que se haya elegido claro con el botón; o el elegido. */
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
       --bg: #101418; --surface: #181d22; --text: #e8eaed; --muted: #9aa3ad;
       --key: #252c33; --key-text: #e8eaed; --key-down: #2f6e5b; --accent: #5ad1a8;
       --warn: #f0b04a; --bad: #f2a29c; --frame: #000;
     }
+  }
+  :root[data-theme="dark"] {
+      --bg: #101418; --surface: #181d22; --text: #e8eaed; --muted: #9aa3ad;
+      --key: #252c33; --key-text: #e8eaed; --key-down: #2f6e5b; --accent: #5ad1a8;
+      --warn: #f0b04a; --bad: #f2a29c; --frame: #000;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; background: var(--bg); color: var(--text);
@@ -35,7 +45,9 @@
      unos milímetros y un toque podría caer donde no era. */
   header { display: grid; grid-template-columns: 1fr auto; grid-template-rows: 26px 24px;
     align-items: center; gap: 4px 10px; margin-bottom: 10px; }
-  h1 { font-size: 17px; margin: 0; font-weight: 650; white-space: nowrap; }
+  h1 { font-size: 17px; margin: 0; font-weight: 650; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+  #theme { min-height: 0; height: 26px; width: 34px; padding: 0; border-radius: 99px; font-size: 15px;
+    line-height: 26px; touch-action: manipulation; }
   .chip { font-size: 12.5px; line-height: 18px; height: 24px; padding: 3px 9px; border-radius: 99px;
     background: var(--key); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     font-variant-numeric: tabular-nums; justify-self: end; max-width: 100%; }
@@ -106,7 +118,7 @@
 <body>
 <main>
   <header>
-    <h1>ZeroRemote</h1>
+    <h1>ZeroRemote <button id="theme" type="button" aria-label="Cambiar entre modo claro y oscuro">☾</button></h1>
     <span id="conn" class="chip bad">Desconectado</span>
     <span id="bat" class="chip">—</span>
     <span id="rate" class="chip">—</span>
@@ -368,6 +380,24 @@ async function refreshInfo() {
 }
 setInterval(refreshInfo, 10000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshInfo(); });
+
+// --- Modo claro / oscuro ---
+// Sin elegir, el del sistema. El botón cambia al otro y lo recuerda en este navegador.
+
+const darkQuery = matchMedia("(prefers-color-scheme: dark)");
+const isDark = () => (document.documentElement.dataset.theme || (darkQuery.matches ? "dark" : "light")) === "dark";
+function paintThemeButton() {
+  $("theme").textContent = isDark() ? "☀" : "☾";  // lo que se pone al tocarlo
+  document.querySelector('meta[name="theme-color"]').content = isDark() ? "#101418" : "#f4f5f7";
+}
+$("theme").onclick = () => {
+  const next = isDark() ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("zeroremote-theme", next); } catch (_) {}
+  paintThemeButton();
+};
+darkQuery.addEventListener("change", paintThemeButton);
+paintThemeButton();
 
 // --- Interruptores (los mismos que en la app Remote del Cardputer) ---
 

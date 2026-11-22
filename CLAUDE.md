@@ -99,6 +99,13 @@ Tools/instalar.sh                                  # todo lo anterior + instalar
 
 ## Estado
 
+- **0.4.0 (22-nov-2026) — modo claro/oscuro; preparada para publicar.** Botón ☀/☾ junto al
+  título (sin elegir, el del sistema; la elección en `localStorage`, aplicada antes de pintar).
+  Entre 0.3.3 y 0.3.6: vuelve «tirar para recargar», ↑ encima de ↓, fila «Carpeta superior» y
+  espacio bajo listas de menos de 5 filas. **Para la tienda falta**: grabar un vídeo en el
+  aparato (la primera publicación lo pide, sin metadatos de ubicación) y decidir cuándo, por
+  [launcher#268](https://github.com/CardputerZero/launcher/issues/268) (con 19 apps
+  instaladas, Remote tumbaría el lanzador). `app-builder.json` está al día; no se ha enviado.
 - **0.3.2 (22-nov-2026) — contador de FPS.** Lo pidió Bruno. Cuenta imágenes completas
   pintadas (marca de fin de imagen), no franjas: medido, 140 franjas eran 77 imágenes. 20 fps
   en el desbloqueo (el tope, `--fps`), 5-11 pasando apps en el lanzador; 0 con la pantalla

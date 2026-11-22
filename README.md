@@ -25,7 +25,8 @@ desde el menú del navegador.
 - **Teclado**: botones para Esc, Tab, Enter, flechas, borrar y espacio (mantenerlos pulsados
   mantiene la tecla: un Esc largo sale de las apps), el teclado del móvil para escribir, y
   cualquier teclado físico tecla a tecla.
-- **Batería y consumo** en la cabecera.
+- **Batería, consumo y FPS** en la cabecera, y **modo claro u oscuro** con el botón ☀/☾ (sin
+  tocarlo, el del sistema).
 - **Tocar la pantalla** la despierta y, si está la pantalla de bloqueo del lanzador, la
   desbloquea (TAB + ENTER) y te deja en el lanzador. **En el lanzador, tocar a un lado u otro
   de la imagen** es como sus flechas «‹ ›» (pasa de app) y **en el centro**, ENTER (la abre).
