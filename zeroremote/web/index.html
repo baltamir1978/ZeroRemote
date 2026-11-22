@@ -107,7 +107,8 @@
     <button data-code="57" class="wide">Espacio</button>
     <button id="kbd" class="wide accent" type="button">Teclado</button>
   </div>
-  <p class="hint">Toca la pantalla para despertarla y desbloquearla. Mantén pulsado un botón
+  <p class="hint">Toca la pantalla para despertarla y desbloquearla; en el lanzador, toca a un
+    lado u otro para pasar de app. Mantén pulsado un botón
     para mantener la tecla (Esc largo sale de las apps). «Teclado» abre el del móvil para
     escribir. Con un teclado físico, escribe directamente.</p>
   </section>
@@ -301,10 +302,14 @@ $("kbd").addEventListener("click", () => {
   if (document.activeElement === typer) typer.blur(); else typer.focus();
 });
 
-// Tocar la pantalla: la despierta y, si lo que hay es el bloqueo del lanzador, lo
-// desbloquea (TAB + ENTER, lo decide el servicio mirando la imagen). El teclado del móvil se
-// abre con su botón.
-$("screenwrap").addEventListener("click", () => send({ t: "wake", unlock: true }));
+// Tocar la pantalla: el servicio mira la imagen y decide. Apagada o bloqueada, la despierta
+// y desbloquea (TAB + ENTER); en el lanzador, tocar a un lado es su flecha de ese lado. Se
+// manda dónde se ha tocado, de 0 (izquierda) a 1 (derecha). El teclado del móvil se abre con
+// su botón.
+$("screenwrap").addEventListener("click", (e) => {
+  const r = canvas.getBoundingClientRect();
+  send({ t: "touch", x: Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1) });
+});
 
 // --- Lo que está encendido (lo deciden los interruptores de la app Remote) ---
 

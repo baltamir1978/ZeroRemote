@@ -62,6 +62,12 @@ Dos partes que van en el mismo `.deb`:
   y 2-17: ≥ 40 px amarillos, ≤ 25 %, y ≥ 75 % amarillo o negro), TAB + ENTER, hasta 3 tandas.
   Ajustado con capturas reales (`tests/data/top_*.bin`, las 20 filas de arriba): bloqueo
   110-144 px amarillos, lanzador 0. Dentro de una app no se manda nada.
+- **Tocar a los lados en el lanzador** (`{"t":"touch","x":0..1}`; la web manda dónde se tocó):
+  apagada o bloqueada → como arriba; si `screen.is_launcher_home` (≥ 40 px amarillos del
+  «ZERO» en x 4-46, y 3-17, **y** las dos flechas grises en x 3-16 / 303-317, y 77-98) y
+  x < 0,25 o > 0,75 → flecha izquierda/derecha; si no, nada. Hacen falta las flechas: IP Panel
+  también tiene un título amarillo ahí («IP INFO»). Datos de prueba: `tests/data/mid_home.bin`
+  (filas 76-99 del lanzador).
 - **El lanzador (APPLaunch 0.6.105) se cae al arrancar con 20 apps**
   (`free(): invalid next size`; [launcher#268](https://github.com/CardputerZero/launcher/issues/268)).
   `Tools/instalar.sh` se niega si ya hay 19. Los **iconos del lanzador tienen que ser PNG de 8
@@ -89,6 +95,9 @@ Tools/instalar.sh                                  # todo lo anterior + instalar
 
 ## Estado
 
+- **0.2.2 (22-nov-2026) — tocar a los lados pasa de app en el lanzador.** Lo pidió Bruno.
+  Probado en el aparato: derecha, derecha, izquierda mueven el carrusel; el centro con el
+  lanzador no hace nada; dentro de IP Panel los toques laterales no mandan nada.
 - **0.2.1 (22-nov-2026) — tocar la pantalla desbloquea.** Lo pidió Bruno: que el primer toque
   mande TAB y ENTER y deje el lanzador. Probado en el aparato: dos veces de apagado y bloqueado
   al lanzador con un toque, y con el lanzador a la vista no manda nada. Instalada en cpzero.

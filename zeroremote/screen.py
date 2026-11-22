@@ -108,3 +108,41 @@ def is_lockscreen(frame: bytes) -> bool:
     return (LOCK_HINT_MIN_PIXELS <= yellow <= LOCK_HINT_MAX_YELLOW * total
             and (yellow + dark) >= LOCK_HINT_MIN_PLAIN * total)
 
+
+# --- La pantalla de inicio del lanzador ---
+#
+# Se reconoce por el «ZERO» amarillo de arriba a la izquierda y las dos flechas grises
+# («‹ ›») a los lados del carrusel. Medido en el aparato: «ZERO» 86 px amarillos en x 6-43,
+# y 5-14; flechas en x 6-12 y 306-313, y 80-94, gris ~(130,130,130) con su suavizado.
+HOME_TITLE_BOX = (4, 3, 46, 17)
+HOME_ARROW_BOXES = ((3, 77, 16, 98), (303, 77, 317, 98))
+HOME_TITLE_MIN = 40
+HOME_ARROW_MIN = 15
+
+
+def _rgb(p: int):
+    return ((p >> 11) & 31) * 255 // 31, ((p >> 5) & 63) * 255 // 63, (p & 31) * 255 // 31
+
+
+def _count(frame: bytes, box, test) -> int:
+    x0, y0, x1, y1 = box
+    n = 0
+    for y in range(y0, y1):
+        row = frame[y * STRIDE + x0 * BPP:y * STRIDE + x1 * BPP]
+        for i in range(0, len(row), 2):
+            if test(row[i] | (row[i + 1] << 8)):
+                n += 1
+    return n
+
+
+def _is_arrow_grey(p: int) -> bool:
+    r, g, b = _rgb(p)
+    return 90 <= r <= 225 and abs(r - g) <= 25 and abs(g - b) <= 25
+
+
+def is_launcher_home(frame: bytes) -> bool:
+    """¿Se ve el carrusel de apps del lanzador? (no el bloqueo, no una app)."""
+    if _count(frame, HOME_TITLE_BOX, _is_yellow) < HOME_TITLE_MIN:
+        return False
+    return all(_count(frame, box, _is_arrow_grey) >= HOME_ARROW_MIN for box in HOME_ARROW_BOXES)
+

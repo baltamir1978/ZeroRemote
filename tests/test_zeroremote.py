@@ -107,6 +107,30 @@ class LockscreenTest(unittest.TestCase):
         self.assertTrue(screen.is_lockscreen(self.frame("lock_enter")))  # «Press ENTER to unlock»
         self.assertFalse(screen.is_lockscreen(self.frame("home")))       # el lanzador («ZERO»)
 
+    @staticmethod
+    def home_frame():
+        """Lanzador: las filas 0-19 y 76-99 de una captura real, el resto negro."""
+        here = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+        with open(os.path.join(here, "top_home.bin"), "rb") as f:
+            top = zlib.decompress(f.read())
+        with open(os.path.join(here, "mid_home.bin"), "rb") as f:
+            mid = zlib.decompress(f.read())
+        frame = bytearray(screen.FRAME_BYTES)
+        frame[:len(top)] = top
+        frame[76 * screen.STRIDE:76 * screen.STRIDE + len(mid)] = mid
+        return bytes(frame)
+
+    def test_launcher_home(self):
+        self.assertTrue(screen.is_launcher_home(self.home_frame()))
+        self.assertFalse(screen.is_lockscreen(self.home_frame()))
+        # El bloqueo no tiene «ZERO» (tiene su aviso): no es la pantalla de inicio.
+        self.assertFalse(screen.is_launcher_home(self.frame("lock_tab")))
+        self.assertFalse(screen.is_launcher_home(bytes(screen.FRAME_BYTES)))
+        # «ZERO» sin las flechas (otra pantalla con el mismo título): tampoco.
+        no_arrows = bytearray(self.home_frame())
+        no_arrows[76 * screen.STRIDE:100 * screen.STRIDE] = bytes(24 * screen.STRIDE)
+        self.assertFalse(screen.is_launcher_home(bytes(no_arrows)))
+
     def test_black_and_yellow_photo(self):
         self.assertFalse(screen.is_lockscreen(bytes(screen.FRAME_BYTES)))  # negra
         yellow = struct.pack("<H", (28 << 11) | (50 << 5) | 4)

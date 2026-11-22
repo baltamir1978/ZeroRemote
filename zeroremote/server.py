@@ -407,6 +407,22 @@ class Server:
             await self._tap(keys.KEY_TAB, 0.35)
             await self._tap(keys.KEY_ENTER, 0.7)
 
+    async def touch(self, x: float):
+        """Un toque en la imagen de la web, `x` de 0 (izquierda) a 1 (derecha).
+
+        Apagada o bloqueada: despertar y desbloquear. En la pantalla de inicio del lanzador,
+        tocar a un lado es como su flecha de ese lado (las «‹ ›» que pinta el carrusel). En
+        cualquier otra pantalla no se manda nada: dentro de una app una flecha haría cosas."""
+        dark = device_status("", self.backlight)["brightness"] == 0
+        try:
+            frame = None if dark else screen.read_frame(self.args.fb)
+        except OSError:
+            return
+        if dark or screen.is_lockscreen(frame):
+            await self.wake(unlock=True)
+        elif screen.is_launcher_home(frame) and (x < 0.25 or x > 0.75):
+            await self._tap(keys.KEY_LEFT if x < 0.25 else keys.KEY_RIGHT, 0)
+
     async def receive_loop(self, reader, writer, pressed, status_soon):
         while True:
             try:
@@ -431,6 +447,12 @@ class Server:
             status_soon.set()
             if msg.get("t") == "wake":
                 await self.wake(unlock=bool(msg.get("unlock")))
+            elif msg.get("t") == "touch":
+                try:
+                    x = min(max(float(msg.get("x", 0.5)), 0.0), 1.0)
+                except (TypeError, ValueError):
+                    x = 0.5
+                await self.touch(x)
                 status_soon.set()
             elif msg.get("t") == "key":
                 down = bool(msg.get("down"))
