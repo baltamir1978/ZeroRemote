@@ -58,3 +58,53 @@ def encode_band(frame: bytes, y: int, rows: int, level: int = 1) -> bytes:
     # más del doble para ahorrar un 10 %.
     body = zlib.compress(frame[y * STRIDE:(y + rows) * STRIDE], level)
     return struct.pack("<BHH", MSG_BAND, y, rows) + body
+
+
+# --- Pantalla de bloqueo del lanzador ---
+#
+# El salvapantallas del lanzador, al despertar, pinta arriba a la izquierda «Press TAB to
+# unlock» (o «Press ENTER to unlock») en amarillo. El lanzador también tiene «ZERO» en
+# amarillo en ese sitio, pero no pasa de x≈45; el aviso llega hasta x≈190. Se cuentan los
+# píxeles amarillos de la franja que sólo pisa el aviso.
+LOCK_HINT_BOX = (60, 2, 180, 17)  # x0, y0, x1, y1 (sin incluir x1, y1)
+LOCK_HINT_MIN_PIXELS = 40
+# Y el resto de la franja, negro (la barra del aviso): una foto con algo amarillo arriba no
+# cumple las dos cosas. Medido en el aparato: 84-87 % amarillo o negro (lo demás, el
+# suavizado de las letras).
+LOCK_HINT_MIN_PLAIN = 0.75
+# Las letras son finas (medido: 6-8 % de la franja); mucho más amarillo es otra cosa.
+LOCK_HINT_MAX_YELLOW = 0.25
+
+
+def _is_yellow(p: int) -> bool:
+    r = (p >> 11) & 31
+    g = (p >> 5) & 63
+    b = p & 31
+    return r >= 22 and g >= 36 and b <= 12  # en 8 bits: R ≥ 180, G ≥ 145, B ≤ 100
+
+
+def _is_dark(p: int) -> bool:
+    return ((p >> 11) & 31) <= 6 and ((p >> 5) & 63) <= 12 and (p & 31) <= 6
+
+
+def lock_hint_counts(frame: bytes):
+    """(amarillos, negros, total) en la franja del aviso."""
+    x0, y0, x1, y1 = LOCK_HINT_BOX
+    yellow = dark = 0
+    for y in range(y0, y1):
+        row = frame[y * STRIDE + x0 * BPP:y * STRIDE + x1 * BPP]
+        for i in range(0, len(row), 2):
+            p = row[i] | (row[i + 1] << 8)
+            if _is_yellow(p):
+                yellow += 1
+            elif _is_dark(p):
+                dark += 1
+    return yellow, dark, (x1 - x0) * (y1 - y0)
+
+
+def is_lockscreen(frame: bytes) -> bool:
+    """¿Está a la vista la pantalla de bloqueo del lanzador (con su aviso)?"""
+    yellow, dark, total = lock_hint_counts(frame)
+    return (LOCK_HINT_MIN_PIXELS <= yellow <= LOCK_HINT_MAX_YELLOW * total
+            and (yellow + dark) >= LOCK_HINT_MIN_PLAIN * total)
+

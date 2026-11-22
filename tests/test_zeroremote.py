@@ -92,6 +92,31 @@ class ScreenTest(unittest.TestCase):
         self.assertEqual(zlib.decompress(msg[5:]), f[10 * screen.STRIDE:13 * screen.STRIDE])
 
 
+class LockscreenTest(unittest.TestCase):
+    """Con las 20 filas de arriba de capturas reales del aparato (22-nov-2026)."""
+
+    @staticmethod
+    def frame(name):
+        here = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+        with open(os.path.join(here, f"top_{name}.bin"), "rb") as f:
+            top = zlib.decompress(f.read())
+        return top + bytes(screen.FRAME_BYTES - len(top))
+
+    def test_real_screens(self):
+        self.assertTrue(screen.is_lockscreen(self.frame("lock_tab")))    # «Press TAB to unlock»
+        self.assertTrue(screen.is_lockscreen(self.frame("lock_enter")))  # «Press ENTER to unlock»
+        self.assertFalse(screen.is_lockscreen(self.frame("home")))       # el lanzador («ZERO»)
+
+    def test_black_and_yellow_photo(self):
+        self.assertFalse(screen.is_lockscreen(bytes(screen.FRAME_BYTES)))  # negra
+        yellow = struct.pack("<H", (28 << 11) | (50 << 5) | 4)
+        self.assertFalse(screen.is_lockscreen(yellow * (screen.FRAME_BYTES // 2)))  # todo amarillo
+        # Mitad amarilla, mitad azul: amarillo de sobra pero no es una barra negra.
+        blue = struct.pack("<H", (4 << 11) | (10 << 5) | 28)
+        row = (yellow + blue) * (screen.WIDTH // 2)
+        self.assertFalse(screen.is_lockscreen(row * screen.HEIGHT))
+
+
 class KeyboardTest(unittest.TestCase):
     def test_press_release_and_release_all(self):
         with tempfile.NamedTemporaryFile() as tmp:

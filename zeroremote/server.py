@@ -367,18 +367,45 @@ class Server:
         except (ConnectionError, asyncio.CancelledError):
             pass
 
-    async def wake(self):
+    async def _tap(self, code: int, after: float):
+        self.keyboard.set(code, True)
+        await asyncio.sleep(0.04)
+        self.keyboard.set(code, False)
+        await asyncio.sleep(after)
+
+    async def wake(self, unlock: bool = False):
         """Despierta la pantalla con Mayúsculas (no hace nada en las apps). El salvapantallas
         del lanzador a veces no enciende con la primera pulsación y sí con la segunda: se
-        comprueba el brillo y se reintenta."""
+        comprueba el brillo y se reintenta.
+
+        Con `unlock`, si lo que se ve es la pantalla de bloqueo del lanzador (su aviso
+        amarillo), manda TAB y ENTER, que es como se desbloquea. Sólo entonces: con la
+        pantalla apagada dentro de una app, TAB y ENTER harían cosas en la app. Hasta tres
+        tandas: si el bloqueo estaba esperando el ENTER, la primera TAB lo devuelve al
+        principio y hace falta otra."""
         for _ in range(3):
-            self.keyboard.set(keys.KEY_LEFTSHIFT, True)
-            await asyncio.sleep(0.04)
-            self.keyboard.set(keys.KEY_LEFTSHIFT, False)
+            if device_status("", self.backlight)["brightness"] != 0:
+                break
+            await self._tap(keys.KEY_LEFTSHIFT, 0)
             for _ in range(12):
                 await asyncio.sleep(0.1)
                 if device_status("", self.backlight)["brightness"] != 0:
-                    return
+                    break
+        if not unlock:
+            return
+        await asyncio.sleep(0.4)  # que el lanzador pinte el aviso
+        for attempt in range(3):
+            try:
+                frame = screen.read_frame(self.args.fb)
+            except OSError:
+                return
+            if not screen.is_lockscreen(frame):
+                if attempt:
+                    log("unlocked")
+                return
+            log("lock screen: TAB + ENTER")
+            await self._tap(keys.KEY_TAB, 0.35)
+            await self._tap(keys.KEY_ENTER, 0.7)
 
     async def receive_loop(self, reader, writer, pressed, status_soon):
         while True:
@@ -403,7 +430,7 @@ class Server:
                 continue
             status_soon.set()
             if msg.get("t") == "wake":
-                await self.wake()
+                await self.wake(unlock=bool(msg.get("unlock")))
                 status_soon.set()
             elif msg.get("t") == "key":
                 down = bool(msg.get("down"))

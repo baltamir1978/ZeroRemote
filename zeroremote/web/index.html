@@ -107,8 +107,9 @@
     <button data-code="57" class="wide">Espacio</button>
     <button id="kbd" class="wide accent" type="button">Teclado</button>
   </div>
-  <p class="hint">Mantén pulsado un botón para mantener la tecla (Esc largo sale de las apps).
-    «Teclado» abre el del móvil para escribir. Con un teclado físico, escribe directamente.</p>
+  <p class="hint">Toca la pantalla para despertarla y desbloquearla. Mantén pulsado un botón
+    para mantener la tecla (Esc largo sale de las apps). «Teclado» abre el del móvil para
+    escribir. Con un teclado físico, escribe directamente.</p>
   </section>
   <p id="remoteoff" class="off" hidden>La pantalla remota está apagada. Se enciende en la app
     <b>Remote</b> del Cardputer.</p>
@@ -300,11 +301,10 @@ $("kbd").addEventListener("click", () => {
   if (document.activeElement === typer) typer.blur(); else typer.focus();
 });
 
-// Tocar la pantalla: si está apagada, Mayúsculas (despierta sin hacer nada más); si no, abre
-// el teclado del móvil.
-$("screenwrap").addEventListener("click", () => {
-  if (brightness === 0) send({ t: "wake" }); else typer.focus();
-});
+// Tocar la pantalla: la despierta y, si lo que hay es el bloqueo del lanzador, lo
+// desbloquea (TAB + ENTER, lo decide el servicio mirando la imagen). El teclado del móvil se
+// abre con su botón.
+$("screenwrap").addEventListener("click", () => send({ t: "wake", unlock: true }));
 
 // --- Lo que está encendido (lo deciden los interruptores de la app Remote) ---
 

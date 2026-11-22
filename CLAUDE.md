@@ -56,8 +56,12 @@ Dos partes que van en el mismo `.deb`:
 - Teclas: códigos de `linux/input-event-codes.h`. **El teclado `tca8418c` no tiene
   `KEY_MINUS` (12) ni `KEY_EQUAL` (13)** y el núcleo descarta lo que el dispositivo no anuncia:
   «-», «+» y «*» van por las del teclado numérico (74, 78, 55).
-- **Despertar**: el salvapantallas del lanzador a veces no enciende con la primera pulsación;
-  `wake` manda Mayúsculas y reintenta hasta 3 veces mirando el brillo.
+- **Despertar y desbloquear** (tocar la pantalla en la web → `{"t":"wake","unlock":true}`):
+  Mayúsculas hasta que hay brillo (el salvapantallas a veces no enciende a la primera) y, si
+  `screen.is_lockscreen` ve el aviso amarillo «Press TAB/ENTER to unlock» (franja x 60-180,
+  y 2-17: ≥ 40 px amarillos, ≤ 25 %, y ≥ 75 % amarillo o negro), TAB + ENTER, hasta 3 tandas.
+  Ajustado con capturas reales (`tests/data/top_*.bin`, las 20 filas de arriba): bloqueo
+  110-144 px amarillos, lanzador 0. Dentro de una app no se manda nada.
 - **El lanzador (APPLaunch 0.6.105) se cae al arrancar con 20 apps**
   (`free(): invalid next size`; [launcher#268](https://github.com/CardputerZero/launcher/issues/268)).
   `Tools/instalar.sh` se niega si ya hay 19. Los **iconos del lanzador tienen que ser PNG de 8
@@ -85,6 +89,9 @@ Tools/instalar.sh                                  # todo lo anterior + instalar
 
 ## Estado
 
+- **0.2.1 (22-nov-2026) — tocar la pantalla desbloquea.** Lo pidió Bruno: que el primer toque
+  mande TAB y ENTER y deje el lanzador. Probado en el aparato: dos veces de apagado y bloqueado
+  al lanzador con un toque, y con el lanzador a la vista no manda nada. Instalada en cpzero.
 - **0.2.0 (22-nov-2026) — archivos y app Remote; instalada en cpzero.** Compartir archivos
   (probado desde el portátil: 2,4 MB/s subida, 2,3 bajada, 20 MB idénticos) y la app con QR e
   interruptores (probada en el aparato: se abre desde el lanzador, apagar «File sharing» da 403

@@ -14,7 +14,7 @@ import time
 
 EV_SYN, EV_KEY = 0, 1
 SYN_REPORT = 0
-KEY_A, KEY_ENTER, KEY_ESC, KEY_LEFTSHIFT = 30, 28, 1, 42
+KEY_A, KEY_ENTER, KEY_ESC, KEY_LEFTSHIFT, KEY_TAB = 30, 28, 1, 42, 15
 KEY_MAX = 0x2FF
 EVENT = struct.Struct("llHHi")  # timeval (el núcleo pone la hora), type, code, value
 

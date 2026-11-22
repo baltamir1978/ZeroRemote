@@ -26,7 +26,9 @@ desde el menú del navegador.
   mantiene la tecla: un Esc largo sale de las apps), el teclado del móvil para escribir, y
   cualquier teclado físico tecla a tecla.
 - **Batería y consumo** en la cabecera.
-- **Pantalla apagada**: tocarla la despierta (con Mayúsculas, que no hace nada en las apps).
+- **Tocar la pantalla** la despierta y, si está la pantalla de bloqueo del lanzador, la
+  desbloquea (TAB + ENTER) y te deja en el lanzador. Sólo si ve el aviso de bloqueo: dentro
+  de una app no manda nada.
 - **Archivos** (debajo, en la misma página): Música, Imágenes, Vídeos, Descargas, Documentos y
   Tracks GPS. Subir desde el móvil (con barra; nunca pisa un archivo, crea «nombre (1)»),
   descargar tocando, crear carpetas y borrar. Nada fuera de esas carpetas. Unos 2,4 MB/s de
