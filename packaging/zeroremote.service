@@ -1,0 +1,20 @@
+[Unit]
+Description=ZeroRemote: screen, keyboard and files of the Cardputer in the browser (port 8320, Tailscale only)
+Documentation=https://github.com/baltamir1978/ZeroRemote
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# El usuario del aparato (uid 1000), no root: está en los grupos video (pantalla) e input
+# (teclado), y comparte sus carpetas. Los interruptores los cambia la app Remote.
+User=1000
+Group=1000
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+WorkingDirectory=/usr/lib/zeroremote
+ExecStart=/usr/bin/python3 -m zeroremote
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

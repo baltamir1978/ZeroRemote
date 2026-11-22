@@ -1,0 +1,9 @@
+#!/bin/sh
+# ZeroRemote: start the web service (a system service that runs as the device user, uid 1000).
+set -e
+if [ "$1" = "configure" ]; then
+    systemctl daemon-reload >/dev/null 2>&1 || true
+    systemctl enable zeroremote.service >/dev/null 2>&1 || true
+    systemctl restart zeroremote.service >/dev/null 2>&1 || true
+fi
+exit 0
