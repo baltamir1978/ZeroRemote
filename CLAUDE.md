@@ -99,6 +99,10 @@ Tools/instalar.sh                                  # todo lo anterior + instalar
 
 ## Estado
 
+- **0.4.2 (22-nov-2026) — iconos nuevos en los archivos.** Lo pidió Bruno («un poco
+  viejunos»). Fuera los emojis (dependen de cada móvil): iconos de línea propios en SVG
+  (`ICON` en la web, 24×24, `currentColor`), con color por tipo (`--i-folder`, `--i-image`…,
+  en los dos temas) y papelera/descarga en gris que se marcan al pulsar.
 - **0.4.1 (22-nov-2026) — abrir archivos en el navegador y botón ⬇.** Lo pidió Bruno. El
   nombre abre en otra pestaña lo que el navegador sabe enseñar (por extensión, `KINDS` en la
   web); lo demás se descarga. `api_download` atiende tramos (`Range`, 206/416: los

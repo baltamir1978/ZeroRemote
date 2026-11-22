@@ -19,6 +19,7 @@
     --bg: #f4f5f7; --surface: #ffffff; --text: #15181c; --muted: #5d6670;
     --key: #e7eaee; --key-text: #15181c; --key-down: #9fd8c6; --accent: #1d8f6e;
     --warn: #b26a00; --bad: #b3261e; --frame: #15181c;
+    --i-folder: #d99a00; --i-image: #2f7fd1; --i-audio: #c2337a; --i-video: #7b4fd6; --i-file: #5d6670;
   }
   /* Oscuro: el del sistema, salvo que se haya elegido claro con el botón; o el elegido. */
   @media (prefers-color-scheme: dark) {
@@ -26,12 +27,14 @@
       --bg: #101418; --surface: #181d22; --text: #e8eaed; --muted: #9aa3ad;
       --key: #252c33; --key-text: #e8eaed; --key-down: #2f6e5b; --accent: #5ad1a8;
       --warn: #f0b04a; --bad: #f2a29c; --frame: #000;
+      --i-folder: #f2c14e; --i-image: #6aa8f0; --i-audio: #ef7fb2; --i-video: #a98bf0; --i-file: #9aa3ad;
     }
   }
   :root[data-theme="dark"] {
       --bg: #101418; --surface: #181d22; --text: #e8eaed; --muted: #9aa3ad;
       --key: #252c33; --key-text: #e8eaed; --key-down: #2f6e5b; --accent: #5ad1a8;
       --warn: #f0b04a; --bad: #f2a29c; --frame: #000;
+      --i-folder: #f2c14e; --i-image: #6aa8f0; --i-audio: #ef7fb2; --i-video: #a98bf0; --i-file: #9aa3ad;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; background: var(--bg); color: var(--text);
@@ -89,7 +92,14 @@
   .row { display: flex; align-items: center; gap: 10px; padding: 0 6px 0 12px; min-height: 48px;
     border-top: 1px solid var(--key); }
   .row:first-child { border-top: 0; }
-  .row .ico { width: 22px; text-align: center; flex: none; }
+  .row .ico { width: 24px; height: 24px; flex: none; color: var(--i-file); }
+  .row .ico svg, .row .dl svg, .row .del svg { width: 100%; height: 100%; display: block; }
+  .row .ico.folder { color: var(--i-folder); } .row .ico.image { color: var(--i-image); }
+  .row .ico.audio { color: var(--i-audio); } .row .ico.video { color: var(--i-video); }
+  .row .ico.up { color: var(--accent); }
+  .row .dl svg, .row .del svg { width: 21px; height: 21px; }
+  .row button.del:active { color: var(--bad); background: var(--key); }
+  .row a.dl:active { color: var(--accent); background: var(--key); }
   .row .name { flex: 1; min-width: 0; overflow-wrap: anywhere; padding: 8px 0; color: var(--text); text-decoration: none; }
   .row .size { color: var(--muted); font-size: 12.5px; flex: none; font-variant-numeric: tabular-nums; }
   .row button.del, .row a.dl { min-height: 40px; width: 40px; background: none; color: var(--muted); flex: none;
@@ -465,7 +475,21 @@ function renderCrumbs() {
   $("crumbs").querySelectorAll("a").forEach((a) => a.onclick = (e) => { e.preventDefault(); cur.path = a.dataset.p; loadDir(); });
 }
 
-const KIND_ICON = { image: "🖼", audio: "🎵", video: "🎬", doc: "📄" };
+// Iconos de línea propios (24×24, trazo con el color del texto): se ven igual en cualquier
+// móvil, a diferencia de los emojis, y siguen el tema claro u oscuro.
+const svg = (d, extra = "") => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ` +
+  `stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"${extra}>${d}</svg>`;
+const ICON = {
+  folder: svg('<path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2.2h7.5A2.5 2.5 0 0 1 21 9.7v7.8a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z" fill="currentColor" fill-opacity=".18"/>'),
+  file: svg('<path d="M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8z"/><path d="M14 3v5h5"/>'),
+  image: svg('<rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-4.5-4.5L7 20"/>'),
+  audio: svg('<path d="M9 17.5V5.5l11-2v12"/><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="15.5" r="2.5"/>'),
+  video: svg('<rect x="3" y="6" width="13" height="12" rx="2.5"/><path d="M16 10.5l5-3v9l-5-3z"/>'),
+  doc: svg('<path d="M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>'),
+  up: svg('<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5V20"/>'),
+  download: svg('<path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/>'),
+  trash: svg('<path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l.8 11.6a2 2 0 0 0 2 1.9h5.4a2 2 0 0 0 2-1.9L17.5 7M10 11v6M14 11v6"/>'),
+};
 const KINDS = {
   image: ["jpg", "jpeg", "png", "gif", "webp", "bmp", "avif", "svg"],
   audio: ["mp3", "wav", "ogg", "oga", "opus", "m4a", "aac", "flac"],
@@ -491,7 +515,7 @@ async function loadDir() {
     const up = document.createElement("div");
     up.className = "row";
     const parent = cur.path.includes("/") ? cur.path.slice(0, cur.path.lastIndexOf("/")) : "";
-    up.innerHTML = `<span class="ico">↩</span><a class="name" href="#">Carpeta superior</a>`;
+    up.innerHTML = `<span class="ico up">${ICON.up}</span><a class="name" href="#">Carpeta superior</a>`;
     up.querySelector("a").onclick = (e) => { e.preventDefault(); cur.path = parent; loadDir(); };
     list.appendChild(up);
   }
@@ -502,20 +526,20 @@ async function loadDir() {
     row.className = "row";
     const sub = cur.path ? cur.path + "/" + ent.name : ent.name;
     if (ent.dir) {
-      row.innerHTML = `<span class="ico">📁</span><a class="name" href="#">${esc(ent.name)}</a>`;
+      row.innerHTML = `<span class="ico folder">${ICON.folder}</span><a class="name" href="#">${esc(ent.name)}</a>`;
       row.querySelector("a").onclick = (e) => { e.preventDefault(); cur.path = sub; loadDir(); };
     } else {
       // Lo que el navegador sabe enseñar (foto, audio, vídeo, PDF, texto) se abre en otra
-      // pestaña al tocar el nombre; lo demás se descarga. El ⬇ siempre descarga.
+      // pestaña al tocar el nombre; lo demás se descarga. El botón de descarga siempre descarga.
       const href = "/api/download?" + new URLSearchParams({ root: cur.root, path: sub });
       const kind = fileKind(ent.name);
       const open = kind ? `href="${href}&inline=1" target="_blank" rel="noopener"` : `href="${href}" download`;
-      row.innerHTML = `<span class="ico">${KIND_ICON[kind] || "📄"}</span><a class="name" ${open}>${esc(ent.name)}</a>` +
+      row.innerHTML = `<span class="ico ${kind || "file"}">${ICON[kind] || ICON.file}</span><a class="name" ${open}>${esc(ent.name)}</a>` +
         `<span class="size">${human(ent.size)}</span>` +
-        `<a class="dl" href="${href}" download aria-label="Descargar ${esc(ent.name)}">⬇</a>`;
+        `<a class="dl" href="${href}" download aria-label="Descargar ${esc(ent.name)}">${ICON.download}</a>`;
     }
     const del = document.createElement("button");
-    del.className = "del"; del.textContent = "🗑"; del.setAttribute("aria-label", "Borrar " + ent.name);
+    del.className = "del"; del.innerHTML = ICON.trash; del.setAttribute("aria-label", "Borrar " + ent.name);
     del.onclick = async () => {
       if (!confirm(`¿Borrar «${ent.name}»${ent.dir ? " y todo lo que contiene" : ""}?`)) return;
       try { await call("/api/delete", { path: sub }, { method: "POST" }); } catch (e) { alert(e.message); }
