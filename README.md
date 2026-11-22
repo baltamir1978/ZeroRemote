@@ -8,6 +8,10 @@ manejarlo desde el móvil o el portátil sin tocarlo. Funciona a través de
 http://cpzero:8320/
 ```
 
+Si el nombre no resuelve en el móvil (pasa con el «DNS privado» de Android, que se salta el
+de Tailscale), con la IP de Tailscale del aparato: `http://100.66.95.5:8320/`, escrito con
+`http://` delante. Se puede añadir a la pantalla de inicio desde el menú del navegador.
+
 ## Qué hace
 
 - **Pantalla en directo** (320×170, ampliada y nítida). Sólo se mandan las filas que cambian:

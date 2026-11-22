@@ -137,6 +137,7 @@ class Server:
         peer = writer.get_extra_info("peername")
         try:
             if not self.allowed(peer):
+                log(f"refused (not Tailscale): {peer[0] if peer else '?'}")
                 writer.close()
                 return
             request = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 10)
@@ -152,6 +153,7 @@ class Server:
             elif path == "/ws" and headers.get("upgrade", "").lower() == "websocket":
                 await self.websocket(reader, writer, headers, peer)
             elif path in ("/", "/index.html"):
+                log(f"page requested: {peer[0]}")
                 await self.static(writer, "index.html", "text/html; charset=utf-8")
             else:
                 await self.reply(writer, 404, b"Not Found")

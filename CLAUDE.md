@@ -48,6 +48,9 @@ Tools/instalar.sh                     # pasa las pruebas, copia a cpzero y reini
 - **0.1.0 (22-nov-2026) — primera versión, instalada en cpzero.** Probado desde el portátil:
   página, WebSocket, imagen reconstruida idéntica al framebuffer (170 de 170 filas), teclas,
   `wake`, y la página en Chrome a tamaño de móvil. **Sin probar en el móvil de Bruno** (el
-  teclado del móvil por `beforeinput`, mantener botones pulsados).
+  teclado del móvil por `beforeinput`, mantener botones pulsados). En el Pixel de Bruno
+  `http://cpzero:8320/` no abre (el nombre no resuelve allí) y **con la IP,
+  `http://100.66.95.5:8320/`, sí** (22-nov-2026): conecta y recibe la pantalla. El servicio
+  registra cada petición de la página (`page requested`) y cada cliente.
 - Idea para después: versión por cable con adb (app de Android que llega al mismo servicio con
   `adb forward`); el adb del Cardputer es sólo USB y no tiene ningún aparato emparejado.
