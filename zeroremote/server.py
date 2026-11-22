@@ -200,6 +200,8 @@ class Server:
             if name == "index.html":
                 log(f"page requested: {peer[0]}")
             await self.static(writer, name, ctype)
+        elif path == "/api/settings" and method == "POST":
+            await self.api_settings(query, writer, peer)
         elif path == "/api/info" and method == "GET":
             await self.reply_json(writer, {"version": __version__, "screen": self.settings.screen,
                                            "files": self.settings.files,
@@ -234,6 +236,25 @@ class Server:
 
     async def reply_json(self, writer, obj, code: int = 200):
         await self.reply(writer, code, json.dumps(obj, ensure_ascii=False).encode(), "application/json; charset=utf-8")
+
+    async def api_settings(self, query, writer, peer):
+        """Los interruptores desde la web (los mismos que en la app Remote). Se guardan en su
+        fichero y se aplican ya. Con los dos apagados el servicio deja de escuchar: la web lo
+        avisa antes, y se vuelve a encender desde la app."""
+        new = config.Settings(self.settings.screen, self.settings.files)
+        for key in ("screen", "files"):
+            value = query.get(key)
+            if value not in (None, "on", "off"):
+                raise files.FileError(400, "Valor no válido")
+            if value is not None:
+                setattr(new, key, value == "on")
+        config.save(config.config_path(), new)
+        log(f"settings from {peer[0]}: screen={'on' if new.screen else 'off'} files={'on' if new.files else 'off'}")
+        await self.reply_json(writer, {"screen": new.screen, "files": new.files})
+        if not new.screen:
+            for w in list(self.screen_clients):
+                w.close()
+        self.settings = new
 
     # --- Archivos ---
 
@@ -411,8 +432,9 @@ class Server:
         """Un toque en la imagen de la web, `x` de 0 (izquierda) a 1 (derecha).
 
         Apagada o bloqueada: despertar y desbloquear. En la pantalla de inicio del lanzador,
-        tocar a un lado es como su flecha de ese lado (las «‹ ›» que pinta el carrusel). En
-        cualquier otra pantalla no se manda nada: dentro de una app una flecha haría cosas."""
+        tocar a un lado es como su flecha de ese lado (las «‹ ›» que pinta el carrusel) y en el
+        centro, ENTER: abre la app seleccionada. En cualquier otra pantalla no se manda nada:
+        dentro de una app una flecha o un ENTER harían cosas."""
         dark = device_status("", self.backlight)["brightness"] == 0
         try:
             frame = None if dark else screen.read_frame(self.args.fb)
@@ -420,8 +442,8 @@ class Server:
             return
         if dark or screen.is_lockscreen(frame):
             await self.wake(unlock=True)
-        elif screen.is_launcher_home(frame) and (x < 0.25 or x > 0.75):
-            await self._tap(keys.KEY_LEFT if x < 0.25 else keys.KEY_RIGHT, 0)
+        elif screen.is_launcher_home(frame):
+            await self._tap(keys.KEY_LEFT if x < 0.25 else keys.KEY_RIGHT if x > 0.75 else keys.KEY_ENTER, 0)
 
     async def receive_loop(self, reader, writer, pressed, status_soon):
         while True:

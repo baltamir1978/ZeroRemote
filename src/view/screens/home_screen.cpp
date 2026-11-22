@@ -206,6 +206,9 @@ void HomeScreen::save_settings() {
 
 void HomeScreen::poll_status() {
     status_ = remote::parse_status(read_file(status_path()));
+    // Los interruptores también se cambian desde la web: se releen para enseñarlos al día y
+    // para que el siguiente cambio aquí no pise el de la web con un valor viejo.
+    settings_ = remote::parse_settings(read_file(config_path()));
     refresh();
 }
 

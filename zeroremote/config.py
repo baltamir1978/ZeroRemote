@@ -73,3 +73,20 @@ def write_status(path: str, values: dict):
         for k, v in values.items():
             f.write(f"{k}={v}\n")
     os.replace(tmp, path)
+
+
+def settings_text(s: Settings) -> str:
+    # El mismo texto que escribe la app (remote::settings_text en remote_settings.cpp).
+    return ("# ZeroRemote: switches (changed from the Remote app)\n"
+            f"screen={'on' if s.screen else 'off'}\n"
+            f"files={'on' if s.files else 'off'}\n")
+
+
+def save(path: str, s: Settings):
+    """Temporal + rename, como la app: ni ella ni el servicio leen nunca un fichero a medias."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".web.tmp"
+    with open(tmp, "w") as f:
+        f.write(settings_text(s))
+    os.replace(tmp, path)
+

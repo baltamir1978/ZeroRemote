@@ -28,8 +28,11 @@ desde el menú del navegador.
 - **Batería y consumo** en la cabecera.
 - **Tocar la pantalla** la despierta y, si está la pantalla de bloqueo del lanzador, la
   desbloquea (TAB + ENTER) y te deja en el lanzador. **En el lanzador, tocar a un lado u otro
-  de la imagen** es como sus flechas «‹ ›»: pasa de app. El servicio mira la imagen y sólo lo
-  hace en esas pantallas: dentro de una app no manda nada.
+  de la imagen** es como sus flechas «‹ ›» (pasa de app) y **en el centro**, ENTER (la abre).
+  El servicio mira la imagen y sólo lo hace en esas pantallas: dentro de una app no manda nada.
+- **Los mismos interruptores que la app**, arriba de la página. Mientras uno de los dos esté
+  encendido la web sigue funcionando, así que desde ella se puede encender el otro; si se
+  apagan los dos (lo pregunta antes), sólo se vuelve a encender desde la app del Cardputer.
 - **Archivos** (debajo, en la misma página): Música, Imágenes, Vídeos, Descargas, Documentos y
   Tracks GPS. Subir desde el móvil (con barra; nunca pisa un archivo, crea «nombre (1)»),
   descargar tocando, crear carpetas y borrar. Nada fuera de esas carpetas. Unos 2,4 MB/s de

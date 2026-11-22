@@ -325,6 +325,22 @@ class FileApiTest(unittest.TestCase):
         self.assertEqual(self.call("POST", "/api/delete", root="music", path="Disco")[0], 200)
         self.assertFalse(os.path.exists(os.path.join(self.home, "Music", "Disco")))
 
+    def test_settings_from_the_web(self):
+        conf = os.path.join(self.home, "conf", "remote.conf")
+        os.environ["XDG_CONFIG_HOME"] = os.path.join(self.home, "conf-root")
+        try:
+            path = config.config_path()
+            code, body, _ = self.call("POST", "/api/settings", files="off")
+            self.assertEqual((code, json.loads(body)), (200, {"screen": True, "files": False}))
+            self.assertEqual(config.load(path), config.Settings(screen=True, files=False))
+            self.assertEqual(open(path).read(), config.settings_text(config.Settings(True, False)))
+            # Con archivos apagados, los ajustes se pueden seguir cambiando (es como se encienden).
+            self.assertEqual(self.call("POST", "/api/settings", files="on")[0], 200)
+            self.assertTrue(self.srv.settings.files)
+            self.assertEqual(self.call("POST", "/api/settings", files="maybe")[0], 400)
+        finally:
+            del os.environ["XDG_CONFIG_HOME"]
+
     def test_refusals(self):
         open(os.path.join(self.home, "secreto"), "w").close()
         self.assertEqual(self.call("GET", "/api/download", root="music", path="../secreto")[0], 403)

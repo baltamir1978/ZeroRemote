@@ -16,8 +16,8 @@ namespace screen {
  * La pantalla de Remote: el código QR con la dirección de la web (para abrirla con la cámara
  * del móvil) y los dos interruptores del servicio, pantalla remota y compartir archivos.
  * F/X eligen interruptor; ENTER, Z o C lo cambian. Los interruptores se guardan en
- * ~/.config/zeroremote/remote.conf, que el servicio vigila; lo que el servicio está haciendo
- * se lee de su fichero de estado cada medio segundo.
+ * ~/.config/zeroremote/remote.conf, que el servicio vigila (y que la web también cambia: se
+ * relee cada medio segundo, con el fichero de estado del servicio).
  */
 class HomeScreen : public BaseScreen {
 public:

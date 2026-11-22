@@ -76,6 +76,18 @@
   .up .bar { height: 4px; background: var(--key); border-radius: 2px; overflow: hidden; margin-top: 4px; }
   .up .bar i { display: block; height: 100%; width: 0; background: var(--accent); }
   .err { color: var(--bad); }
+  .switches { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .sw { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--surface);
+    border-radius: 10px; padding: 8px 10px 8px 12px; min-height: 48px; font-size: 14px; font-weight: 550; cursor: pointer; }
+  .sw input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .sw i { flex: none; width: 44px; height: 26px; border-radius: 13px; background: #8e8e93; position: relative; transition: background .15s; }
+  .sw i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
+    background: #fff; transition: transform .15s; }
+  .sw input:checked + i { background: #34c759; }
+  .sw input:checked + i::after { transform: translateX(18px); }
+  .sw input:focus-visible + i { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #alloff { display: none; }
+  #alloff.show { display: block; }
 </style>
 </head>
 <body>
@@ -88,6 +100,13 @@
       <span id="rate" class="chip">—</span>
     </div>
   </header>
+
+  <div class="switches">
+    <label class="sw"><span>Pantalla remota</span><input type="checkbox" id="swScreen"><i></i></label>
+    <label class="sw"><span>Compartir archivos</span><input type="checkbox" id="swFiles"><i></i></label>
+  </div>
+  <p id="alloff" class="off">Todo apagado: esta página ya no funciona. Se vuelve a encender en la
+    app <b>Remote</b> del Cardputer.</p>
 
   <section id="remote">
   <div id="screenwrap">
@@ -108,17 +127,17 @@
     <button id="kbd" class="wide accent" type="button">Teclado</button>
   </div>
   <p class="hint">Toca la pantalla para despertarla y desbloquearla; en el lanzador, toca a un
-    lado u otro para pasar de app. Mantén pulsado un botón
+    lado u otro para pasar de app y en el centro para abrirla. Mantén pulsado un botón
     para mantener la tecla (Esc largo sale de las apps). «Teclado» abre el del móvil para
     escribir. Con un teclado físico, escribe directamente.</p>
   </section>
-  <p id="remoteoff" class="off" hidden>La pantalla remota está apagada. Se enciende en la app
-    <b>Remote</b> del Cardputer.</p>
+  <p id="remoteoff" class="off" hidden>La pantalla remota está apagada. Se enciende arriba o
+    en la app <b>Remote</b> del Cardputer.</p>
 
   <section id="filesec">
     <h2>Archivos <small id="free"></small></h2>
-    <p id="filesoff" class="off" hidden>Compartir archivos está apagado. Se enciende en la app
-      <b>Remote</b> del Cardputer.</p>
+    <p id="filesoff" class="off" hidden>Compartir archivos está apagado. Se enciende arriba o en
+      la app <b>Remote</b> del Cardputer.</p>
     <div id="filesui" hidden>
       <div class="roots" id="roots"></div>
       <div class="crumbs" id="crumbs"></div>
@@ -303,7 +322,8 @@ $("kbd").addEventListener("click", () => {
 });
 
 // Tocar la pantalla: el servicio mira la imagen y decide. Apagada o bloqueada, la despierta
-// y desbloquea (TAB + ENTER); en el lanzador, tocar a un lado es su flecha de ese lado. Se
+// y desbloquea (TAB + ENTER); en el lanzador, tocar a un lado es su flecha de ese lado y en
+// el centro, ENTER (abre la app). Se
 // manda dónde se ha tocado, de 0 (izquierda) a 1 (derecha). El teclado del móvil se abre con
 // su botón.
 $("screenwrap").addEventListener("click", (e) => {
@@ -319,6 +339,8 @@ async function refreshInfo() {
     const r = await fetch("/api/info", { cache: "no-store" });
     info = await r.json();
   } catch (_) { return; }
+  $("swScreen").checked = info.screen;
+  $("swFiles").checked = info.files;
   $("remote").hidden = !info.screen;
   $("remoteoff").hidden = info.screen;
   if (info.screen && !socket) connect();
@@ -331,6 +353,31 @@ async function refreshInfo() {
 }
 setInterval(refreshInfo, 10000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshInfo(); });
+
+// --- Interruptores (los mismos que en la app Remote del Cardputer) ---
+
+async function setSwitches(screen, files) {
+  if (!screen && !files &&
+      !confirm("Si apagas los dos, esta página deja de funcionar y sólo se puede volver a encender " +
+               "en la app Remote del Cardputer. ¿Apagar todo?")) {
+    $("swScreen").checked = info.screen; $("swFiles").checked = info.files;
+    return;
+  }
+  try {
+    const r = await fetch("/api/settings?" + new URLSearchParams({ screen: screen ? "on" : "off", files: files ? "on" : "off" }),
+                          { method: "POST" });
+    if (!r.ok) throw new Error();
+  } catch (_) { alert("No se ha podido cambiar"); }
+  if (!screen && !files) {
+    $("alloff").classList.add("show");
+    $("remote").hidden = true; $("remoteoff").hidden = true; $("filesec").hidden = true;
+    if (socket) socket.close();
+    return;
+  }
+  refreshInfo();
+}
+$("swScreen").onchange = (e) => setSwitches(e.target.checked, info.files);
+$("swFiles").onchange = (e) => setSwitches(info.screen, e.target.checked);
 
 // --- Archivos ---
 

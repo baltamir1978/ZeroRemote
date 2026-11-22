@@ -38,6 +38,10 @@ Dos partes que van en el mismo `.deb`:
   `remote_settings.h`: **tienen que coincidir**.
 - **Estado**: el servicio escribe `$XDG_RUNTIME_DIR/zeroremote/status` (`listening`, `url`,
   `screen`, `files`, `clients`, `last_client`) cada 2 s; la app lo lee cada 0,5 s.
+- **La web también cambia los interruptores** (`POST /api/settings?screen=on|off&files=on|off`,
+  permitido aunque archivos esté apagado: es como se enciende). Escribe el mismo fichero y el
+  mismo texto que la app (`config.settings_text` = `remote::settings_text`) y lo aplica ya. La
+  app relee el fichero cada 0,5 s para no pisar un cambio de la web.
 - Con los dos interruptores apagados el servicio cierra el puerto. Apagar la pantalla corta a
   quien mira; apagar archivos corta una subida a medias.
 
@@ -65,7 +69,7 @@ Dos partes que van en el mismo `.deb`:
 - **Tocar a los lados en el lanzador** (`{"t":"touch","x":0..1}`; la web manda dónde se tocó):
   apagada o bloqueada → como arriba; si `screen.is_launcher_home` (≥ 40 px amarillos del
   «ZERO» en x 4-46, y 3-17, **y** las dos flechas grises en x 3-16 / 303-317, y 77-98) y
-  x < 0,25 o > 0,75 → flecha izquierda/derecha; si no, nada. Hacen falta las flechas: IP Panel
+  x < 0,25 o > 0,75 → flecha izquierda/derecha, en medio → ENTER; si no, nada. Hacen falta las flechas: IP Panel
   también tiene un título amarillo ahí («IP INFO»). Datos de prueba: `tests/data/mid_home.bin`
   (filas 76-99 del lanzador).
 - **El lanzador (APPLaunch 0.6.105) se cae al arrancar con 20 apps**
@@ -95,6 +99,9 @@ Tools/instalar.sh                                  # todo lo anterior + instalar
 
 ## Estado
 
+- **0.3.0 (22-nov-2026) — interruptores en la web y ENTER en el centro.** Lo pidió Bruno.
+  Probado en el aparato: desde la pantalla apagada, toques hasta Remote y abrirla sólo con
+  toques; apagar y encender «File sharing» desde la web se ve en la app en ~1,5 s.
 - **0.2.2 (22-nov-2026) — tocar a los lados pasa de app en el lanzador.** Lo pidió Bruno.
   Probado en el aparato: derecha, derecha, izquierda mueven el carrusel; el centro con el
   lanzador no hace nada; dentro de IP Panel los toques laterales no mandan nada.
