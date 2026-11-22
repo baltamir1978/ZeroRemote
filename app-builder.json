@@ -2,7 +2,7 @@
   "app_name": "ZeroRemote",
   "package_name": "zeroremote",
   "bin_name": "zeroremote",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Screen, keyboard and file sharing of the Cardputer Zero from the phone browser",
   "store": {
     "summary": "Use the Cardputer from your phone: live screen, keys and files, over Tailscale",
