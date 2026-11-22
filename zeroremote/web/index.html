@@ -82,6 +82,9 @@
   .row .size { color: var(--muted); font-size: 12.5px; flex: none; font-variant-numeric: tabular-nums; }
   .row button.del { min-height: 40px; width: 40px; background: none; color: var(--muted); flex: none; touch-action: manipulation; }
   .empty { color: var(--muted); padding: 14px; }
+  /* Con pocas filas la lista quedaba pegada al borde de abajo de la pantalla y se veía poco:
+     debajo se deja el alto de unas dos filas. */
+  .list.short { margin-bottom: 100px; }
   .up { margin-top: 8px; font-size: 13px; color: var(--muted); }
   .up .bar { height: 4px; background: var(--key); border-radius: 2px; overflow: hidden; margin-top: 4px; }
   .up .bar i { display: block; height: 100%; width: 0; background: var(--accent); }
@@ -447,6 +450,7 @@ async function loadDir() {
     list.appendChild(up);
   }
   if (!data.entries.length) list.insertAdjacentHTML("beforeend", `<div class="empty">Vacía</div>`);
+  list.classList.toggle("short", data.entries.length + (cur.path ? 1 : 0) < 5);
   for (const ent of data.entries) {
     const row = document.createElement("div");
     row.className = "row";
