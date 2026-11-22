@@ -99,6 +99,13 @@ Tools/instalar.sh                                  # todo lo anterior + instalar
 
 ## Estado
 
+- **0.4.1 (22-nov-2026) — abrir archivos en el navegador y botón ⬇.** Lo pidió Bruno. El
+  nombre abre en otra pestaña lo que el navegador sabe enseñar (por extensión, `KINDS` en la
+  web); lo demás se descarga. `api_download` atiende tramos (`Range`, 206/416: los
+  reproductores lo necesitan para adelantar) y lo que se abre va con `Content-Security-Policy:
+  sandbox` (sin scripts: un .html o .svg subido correría con acceso a la API). Tipos añadidos a
+  `mimetypes` (.md/.log/.csv como texto, .m4a, .opus, .flac, .webp, .avif). Probado: tramos en
+  el aparato con MP4, MP3, JPG y MD; foto y reproductor de vídeo en Chrome.
 - **0.4.0 (22-nov-2026) — modo claro/oscuro; preparada para publicar.** Botón ☀/☾ junto al
   título (sin elegir, el del sistema; la elección en `localStorage`, aplicada antes de pintar).
   Entre 0.3.3 y 0.3.6: vuelve «tirar para recargar», ↑ encima de ↓, fila «Carpeta superior» y

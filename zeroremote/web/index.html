@@ -92,7 +92,10 @@
   .row .ico { width: 22px; text-align: center; flex: none; }
   .row .name { flex: 1; min-width: 0; overflow-wrap: anywhere; padding: 8px 0; color: var(--text); text-decoration: none; }
   .row .size { color: var(--muted); font-size: 12.5px; flex: none; font-variant-numeric: tabular-nums; }
-  .row button.del { min-height: 40px; width: 40px; background: none; color: var(--muted); flex: none; touch-action: manipulation; }
+  .row button.del, .row a.dl { min-height: 40px; width: 40px; background: none; color: var(--muted); flex: none;
+    touch-action: manipulation; display: flex; align-items: center; justify-content: center; text-decoration: none;
+    font-size: 17px; border-radius: 10px; }
+  .row .size { margin-right: 2px; }
   .empty { color: var(--muted); padding: 14px; }
   /* Con pocas filas la lista quedaba pegada al borde de abajo de la pantalla y se veía poco:
      debajo se deja el alto de unas dos filas. */
@@ -462,6 +465,19 @@ function renderCrumbs() {
   $("crumbs").querySelectorAll("a").forEach((a) => a.onclick = (e) => { e.preventDefault(); cur.path = a.dataset.p; loadDir(); });
 }
 
+const KIND_ICON = { image: "🖼", audio: "🎵", video: "🎬", doc: "📄" };
+const KINDS = {
+  image: ["jpg", "jpeg", "png", "gif", "webp", "bmp", "avif", "svg"],
+  audio: ["mp3", "wav", "ogg", "oga", "opus", "m4a", "aac", "flac"],
+  video: ["mp4", "m4v", "webm", "mov"],
+  doc: ["pdf", "txt", "md", "csv", "log", "json"],
+};
+function fileKind(name) {
+  const ext = name.includes(".") ? name.slice(name.lastIndexOf(".") + 1).toLowerCase() : "";
+  for (const [kind, exts] of Object.entries(KINDS)) if (exts.includes(ext)) return kind;
+  return null;
+}
+
 async function loadDir() {
   renderCrumbs();
   const list = $("list");
@@ -489,9 +505,14 @@ async function loadDir() {
       row.innerHTML = `<span class="ico">📁</span><a class="name" href="#">${esc(ent.name)}</a>`;
       row.querySelector("a").onclick = (e) => { e.preventDefault(); cur.path = sub; loadDir(); };
     } else {
+      // Lo que el navegador sabe enseñar (foto, audio, vídeo, PDF, texto) se abre en otra
+      // pestaña al tocar el nombre; lo demás se descarga. El ⬇ siempre descarga.
       const href = "/api/download?" + new URLSearchParams({ root: cur.root, path: sub });
-      row.innerHTML = `<span class="ico">📄</span><a class="name" href="${href}" download>${esc(ent.name)}</a>` +
-        `<span class="size">${human(ent.size)}</span>`;
+      const kind = fileKind(ent.name);
+      const open = kind ? `href="${href}&inline=1" target="_blank" rel="noopener"` : `href="${href}" download`;
+      row.innerHTML = `<span class="ico">${KIND_ICON[kind] || "📄"}</span><a class="name" ${open}>${esc(ent.name)}</a>` +
+        `<span class="size">${human(ent.size)}</span>` +
+        `<a class="dl" href="${href}" download aria-label="Descargar ${esc(ent.name)}">⬇</a>`;
     }
     const del = document.createElement("button");
     del.className = "del"; del.textContent = "🗑"; del.setAttribute("aria-label", "Borrar " + ent.name);

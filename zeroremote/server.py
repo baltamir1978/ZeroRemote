@@ -41,7 +41,13 @@ STATIC = {
 }
 
 
-REASONS = {200: "OK", 400: "Bad Request", 403: "Forbidden", 404: "Not Found", 405: "Method Not Allowed",
+# Tipos que Python no conoce o con los que el navegador descarga en vez de enseñar.
+for _ext, _type in ((".md", "text/plain"), (".log", "text/plain"), (".csv", "text/plain"),
+                    (".m4a", "audio/mp4"), (".opus", "audio/ogg"), (".flac", "audio/flac"),
+                    (".webp", "image/webp"), (".avif", "image/avif")):
+    mimetypes.add_type(_type, _ext)
+
+REASONS = {200: "OK", 206: "Partial Content", 416: "Range Not Satisfiable", 400: "Bad Request", 403: "Forbidden", 404: "Not Found", 405: "Method Not Allowed",
            411: "Length Required", 500: "Internal Server Error", 507: "Insufficient Storage"}
 CHUNK = 64 * 1024
 
@@ -277,17 +283,33 @@ class Server:
         name = os.path.basename(path)
         size = os.path.getsize(path)
         ctype = mimetypes.guess_type(name)[0] or "application/octet-stream"
-        # inline=1 para verla en el navegador (una foto); si no, se descarga.
-        disposition = "inline" if query.get("inline") == "1" else "attachment"
-        quoted = urllib.parse.quote(name)
-        log(f"download {name} ({size} B) to {peer[0]}")
+        if ctype.startswith("text/"):
+            ctype += "; charset=utf-8"
+        # inline=1 para abrirlo en el navegador (foto, audio, vídeo, texto); si no, se descarga.
+        inline = query.get("inline") == "1"
+        extra = f"Content-Disposition: {'inline' if inline else 'attachment'}; filename*=UTF-8''{urllib.parse.quote(name)}\r\n"
+        extra += "Accept-Ranges: bytes\r\nX-Content-Type-Options: nosniff\r\n"
+        if inline:
+            # Lo que se abre aquí lo ha subido alguien: sin scripts (un .html o un .svg con código
+            # correría con permiso para usar la API).
+            extra += "Content-Security-Policy: sandbox; default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'\r\n"
+        span = files.parse_range(headers.get("range", ""), size)
+        start, end = span if span else (0, size - 1)
+        length = max(end - start + 1, 0)
+        if span:
+            extra += f"Content-Range: bytes {start}-{end}/{size}\r\n"
+        else:
+            log(f"{'open' if inline else 'download'} {name} ({size} B) to {peer[0]}")
         with open(path, "rb") as f:
-            self.send_head(writer, 200, ctype, size, f"Content-Disposition: {disposition}; filename*=UTF-8''{quoted}\r\n")
-            while True:
-                chunk = f.read(CHUNK)
+            f.seek(start)
+            self.send_head(writer, 206 if span else 200, ctype, length, extra)
+            remaining = length
+            while remaining > 0:
+                chunk = f.read(min(CHUNK, remaining))
                 if not chunk:
                     break
                 writer.write(chunk)
+                remaining -= len(chunk)
                 await writer.drain()
 
     async def api_upload(self, query, headers, reader, writer, peer):

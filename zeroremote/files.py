@@ -114,3 +114,26 @@ def delete(path: str, root: str):
         os.remove(path)
     else:
         raise FileError(404, "No existe")
+
+
+def parse_range(header: str, size: int):
+    """(inicio, fin incluido) de una cabecera «Range: bytes=…» de un solo tramo, o None si no
+    hay o no se entiende (entonces va el archivo entero). Error 416 si se sale del archivo.
+    Los reproductores de audio y vídeo del navegador piden tramos para poder adelantar."""
+    if not header or not header.startswith("bytes=") or "," in header:
+        return None
+    first, _, last = header[6:].strip().partition("-")
+    try:
+        if first == "":  # «bytes=-500»: los últimos 500
+            n = int(last)
+            if n <= 0:
+                raise FileError(416, "Tramo no válido")
+            return max(size - n, 0), size - 1
+        start = int(first)
+        end = int(last) if last else size - 1
+    except ValueError:
+        return None
+    if start >= size or start < 0 or end < start:
+        raise FileError(416, "Tramo no válido")
+    return start, min(end, size - 1)
+

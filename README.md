@@ -36,7 +36,8 @@ desde el menú del navegador.
   apagan los dos (lo pregunta antes), sólo se vuelve a encender desde la app del Cardputer.
 - **Archivos** (debajo, en la misma página): Música, Imágenes, Vídeos, Descargas, Documentos y
   Tracks GPS. Subir desde el móvil (con barra; nunca pisa un archivo, crea «nombre (1)»),
-  descargar tocando, crear carpetas y borrar. Nada fuera de esas carpetas. Unos 2,4 MB/s de
+  abrir en el navegador tocando el nombre (fotos, audio, vídeo —se puede adelantar—, PDF y
+  texto; lo demás se descarga), descargar con ⬇, crear carpetas y borrar. Nada fuera de esas carpetas. Unos 2,4 MB/s de
   subida y 2,3 de bajada por Tailscale.
 
 ## Cómo funciona

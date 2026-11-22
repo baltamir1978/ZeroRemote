@@ -250,6 +250,19 @@ class FilesTest(unittest.TestCase):
         files.check_space(self.root, 10)
 
 
+class RangeTest(unittest.TestCase):
+    def test_parse_range(self):
+        self.assertIsNone(files.parse_range("", 1000))
+        self.assertIsNone(files.parse_range("bytes=0-1,5-9", 1000))  # varios tramos: entero
+        self.assertEqual(files.parse_range("bytes=0-", 1000), (0, 999))
+        self.assertEqual(files.parse_range("bytes=10-19", 1000), (10, 19))
+        self.assertEqual(files.parse_range("bytes=990-5000", 1000), (990, 999))
+        self.assertEqual(files.parse_range("bytes=-100", 1000), (900, 999))
+        for bad in ("bytes=1000-", "bytes=20-10"):
+            with self.assertRaises(files.FileError):
+                files.parse_range(bad, 1000)
+
+
 class ConfigTest(unittest.TestCase):
     def test_defaults_and_parse(self):
         self.assertEqual(config.parse(""), config.Settings(screen=True, files=False))
@@ -340,6 +353,25 @@ class FileApiTest(unittest.TestCase):
             self.assertEqual(self.call("POST", "/api/settings", files="maybe")[0], 400)
         finally:
             del os.environ["XDG_CONFIG_HOME"]
+
+    def test_open_inline_and_ranges(self):
+        data = bytes(range(256)) * 40
+        self.call("POST", "/api/upload", data, root="videos", path="", name="clip.mp4")
+        code, body, h = self.call("GET", "/api/download", root="videos", path="clip.mp4", inline="1")
+        self.assertEqual((code, body), (200, data))
+        self.assertTrue(h["Content-Disposition"].startswith("inline"))
+        self.assertIn("sandbox", h["Content-Security-Policy"])
+        self.assertEqual((h["Content-Type"], h["Accept-Ranges"]), ("video/mp4", "bytes"))
+        # Un tramo, como pide el reproductor de vídeo para adelantar.
+        req = urllib.request.Request(f"http://127.0.0.1:{self.port}/api/download?root=videos&path=clip.mp4",
+                                     headers={"Range": "bytes=100-199"})
+        with urllib.request.urlopen(req, timeout=5) as r:
+            self.assertEqual((r.status, r.read(), r.headers["Content-Range"]), (206, data[100:200], f"bytes 100-199/{len(data)}"))
+        req = urllib.request.Request(f"http://127.0.0.1:{self.port}/api/download?root=videos&path=clip.mp4",
+                                     headers={"Range": "bytes=999999-"})
+        with self.assertRaises(urllib.error.HTTPError) as e:
+            urllib.request.urlopen(req, timeout=5)
+        self.assertEqual(e.exception.code, 416)
 
     def test_refusals(self):
         open(os.path.join(self.home, "secreto"), "w").close()
