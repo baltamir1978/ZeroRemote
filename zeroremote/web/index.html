@@ -436,7 +436,17 @@ async function loadDir() {
   try { data = await call("/api/files"); }
   catch (e) { list.innerHTML = `<div class="empty err">${esc(e.message)}</div>`; return; }
   $("free").textContent = "libre: " + human(data.free);
-  list.innerHTML = data.entries.length ? "" : `<div class="empty">Vacía</div>`;
+  list.innerHTML = "";
+  // Dentro de una subcarpeta, la primera fila sube un nivel (también se puede tocar la ruta).
+  if (cur.path) {
+    const up = document.createElement("div");
+    up.className = "row";
+    const parent = cur.path.includes("/") ? cur.path.slice(0, cur.path.lastIndexOf("/")) : "";
+    up.innerHTML = `<span class="ico">↩</span><a class="name" href="#">Carpeta superior</a>`;
+    up.querySelector("a").onclick = (e) => { e.preventDefault(); cur.path = parent; loadDir(); };
+    list.appendChild(up);
+  }
+  if (!data.entries.length) list.insertAdjacentHTML("beforeend", `<div class="empty">Vacía</div>`);
   for (const ent of data.entries) {
     const row = document.createElement("div");
     row.className = "row";
