@@ -74,7 +74,13 @@ Dos partes que van en el mismo `.deb`:
   (filas 76-99 del lanzador).
 - **El lanzador (APPLaunch 0.6.105) se cae al arrancar con 20 apps**
   (`free(): invalid next size`; [launcher#268](https://github.com/CardputerZero/launcher/issues/268)).
-  `Tools/instalar.sh` se niega si ya hay 19. Los **iconos del lanzador tienen que ser PNG de 8
+  `Tools/instalar.sh` se niega si ya hay 19. **24-nov-2026: no se reproduce.** Los responsables no
+  lo consiguen en 0.6.109 (sin publicar en apt) y nosotros tampoco en 0.6.105 con 20 y 24 entradas
+  (su `.desktop` de prueba y copias de apps reales). Aquel día las 20 incluían cuatro paquetes que
+  ya no se pueden reinstalar (factorytest, el GPS de la LoRa, IR Chat, Keyboard Guide). Contestado
+  en el aviso; si vuelve a pasar, sacar volcado (`LimitCore=infinity` en un drop-in de
+  `APPLaunch.service` y `core_pattern` a `/tmp`: con `core` va a `/usr/share/APPLaunch`, sin
+  permiso) y `journalctl --user -u APPLaunch`. Los **iconos del lanzador tienen que ser PNG de 8
   bits**: ImageMagick saca 16 desde el SVG (se convierte con `-depth 8 PNG32:`).
 - Iconos: dibujo propio de un Cardputer Zero (no foto ni logo de M5Stack),
   `Tools/generar_icono.py` (ImageMagick **no pinta `stroke`**: los contornos van con rellenos).
