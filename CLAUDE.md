@@ -94,7 +94,7 @@ Tools/compilar.sh deb                              # dist/ZeroRemote_<versión>_
 Tools/instalar.sh                                  # todo lo anterior + instalar en cpzero
 ```
 
-- `.cache` es un enlace a `../ZeroTVBGone/.cache` (LVGL y el *sysroot*).
+- `.cache` es un enlace a `~/.local/share/cardputer-zero-sdk` (LVGL y el *sysroot*, uno por máquina para todas las apps Zero; ver `~/Proyectos/CLAUDE.md`). En un clon nuevo: `mkdir -p ~/.local/share/cardputer-zero-sdk && ln -s ~/.local/share/cardputer-zero-sdk .cache`; si está vacío, la primera compilación lo descarga ahí.
 - Versión en `CMakeLists.txt`, `app-builder.json` y `zeroremote/__init__.py`, a la vez.
 - Simulador sin pantalla: `Xvfb :98`, `SDL_RENDER_DRIVER=software`, `XDG_CONFIG_HOME` y
   `XDG_RUNTIME_DIR` a una carpeta con un `zeroremote/status` de prueba; teclas con
