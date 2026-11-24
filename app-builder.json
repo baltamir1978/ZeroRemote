@@ -5,13 +5,14 @@
   "version": "0.4.3",
   "description": "Screen, keyboard and file sharing of the Cardputer Zero from the phone browser",
   "store": {
-    "summary": "Use the Cardputer from your phone: live screen, keys and files, over Tailscale",
-    "description": "Use the Cardputer Zero from your phone: see its screen live in the browser, type on it and share files, through your own Tailscale network.\n\n- Remote screen: the 320x170 screen, sharp and live (only the rows that change are sent, up to 20 fps), with buttons for Esc, Tab, Enter, arrows, delete and space, your phone's keyboard for typing, and the battery level.\n- Touch the picture: it wakes the screen and unlocks the launcher; on the launcher, the sides move between apps and the centre opens one. Inside apps a touch sends nothing.\n- File sharing: Music, Pictures, Videos, Downloads, Documents and GPS tracks. Upload from the phone (never overwrites), download, create folders and delete. Nothing outside those folders.\n- The Remote app shows two switches (remote screen, file sharing; file sharing starts off) and a QR code with the address: scan it with the phone camera. The same switches are on the web page.\n\nIt only listens on the device's Tailscale address and refuses anything outside Tailscale, so nobody on the same Wi-Fi can see it. While nobody is connected it does nothing. Needs Tailscale on the Cardputer and on the phone. The service runs as the device user (not root), in Python with only the standard library.",
+    "summary": "Use the Cardputer from your phone: live screen, keys and files (needs Tailscale)",
+    "description": "REQUIRES TAILSCALE. ZeroRemote only works through Tailscale: install Tailscale on the Cardputer Zero and on your phone (or computer) and sign both into the same tailnet. Without Tailscale it does nothing: the service only listens on the device's Tailscale address, so it is not reachable on your Wi-Fi or from the internet, and the Remote app just shows \"Waiting for Tailscale\".\n\nUse the Cardputer Zero from your phone: see its screen live in the browser, type on it and share files.\n\n- Remote screen: the 320x170 screen, sharp and live (only the rows that change are sent, up to 20 fps), with buttons for Esc, Tab, Enter, arrows, delete and space, your phone's keyboard for typing, and the battery level.\n- Touch the picture: it wakes the screen and unlocks the launcher; on the launcher, the sides move between apps and the centre opens one. Inside apps a touch sends nothing.\n- File sharing: Music, Pictures, Videos, Downloads, Documents and GPS tracks. Upload from the phone (never overwrites), download, open photos, audio, video and text in the browser, create folders and delete. Nothing outside those folders.\n- The Remote app shows two switches (remote screen, file sharing; file sharing starts off) and a QR code with the address: scan it with the phone camera. The same switches are on the web page.\n\nOnly devices in your own tailnet can connect (anything outside 100.64.0.0/10 is refused), so nobody on the same Wi-Fi can see it. While nobody is connected it does nothing. The web page is in Spanish. The service runs as the device user (not root), in Python with only the standard library.",
     "categories": [
       "System Tools"
     ],
     "screenshots": [
-      "screenshot/remote.png"
+      "screenshot/remote.png",
+      "screenshot/launcher.png"
     ],
     "icon": "store/icon.png",
     "license": "MIT",
@@ -23,7 +24,7 @@
     "locales": {
       "es": {
         "title": "ZeroRemote",
-        "summary": "El Cardputer desde el móvil: pantalla en vivo, teclas y archivos, por Tailscale"
+        "summary": "El Cardputer desde el móvil: pantalla, teclas y archivos (necesita Tailscale)"
       }
     },
     "share_code": "ZRMT",

@@ -2,8 +2,12 @@
 
 La pantalla del **M5Stack Cardputer Zero** en el navegador, en directo, su teclado y sus
 archivos: para manejarlo desde el móvil o el portátil sin tocarlo y pasarle música, fotos o
-tracks. Funciona a través de [Tailscale](https://tailscale.com): sólo lo ven los aparatos de
-tu red de Tailscale.
+tracks.
+
+> **Sin Tailscale no funciona nada.** Hace falta [Tailscale](https://tailscale.com) en el
+> Cardputer y en el móvil (o el portátil), con la misma cuenta. El servicio sólo escucha en la
+> IP de Tailscale del aparato: no se llega a él desde la wifi ni desde internet, y sin Tailscale
+> la app Remote se queda en «Waiting for Tailscale...».
 
 En el Cardputer, la app **Remote** del lanzador enseña un **código QR con la dirección**
 (escanéalo con la cámara del móvil) y dos interruptores: **pantalla remota** y **compartir
@@ -15,7 +19,7 @@ La dirección es `http://<IP de Tailscale>:8320/` (también `http://cpzero:8320/
 resuelve; en Android con «DNS privado» no lo hace). Se puede añadir a la pantalla de inicio
 desde el menú del navegador.
 
-<p align="center"><img src="docs/captura.png" alt="ZeroRemote en un móvil: la pantalla del Cardputer con el lanzador y los botones de teclas" width="320"></p>
+<p align="center"><img src="docs/captura.png" alt="ZeroRemote en un móvil: la pantalla del Cardputer con el lanzador y los botones de teclas" width="300"> <img src="docs/archivos.png" alt="Los archivos del Cardputer en el móvil, en modo oscuro: carpetas, subir, descargar y borrar" width="300"></p>
 
 ## Qué hace
 
