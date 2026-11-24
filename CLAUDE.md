@@ -99,6 +99,19 @@ Tools/instalar.sh                                  # todo lo anterior + instalar
 
 ## Estado
 
+- **0.4.3 enviada a la tienda (24-nov-2026): [#781](https://github.com/CardputerZero/packages/pull/781).**
+  Lo pidió Bruno. CI en verde; como es la primera publicación, espera a que la revise un
+  responsable. Vídeo en el aparato y capturas de la web en el móvil en la release
+  [`video-0.4.3`](https://github.com/baltamir1978/ZeroRemote/releases/tag/video-0.4.3), enlazados
+  en un comentario del PR. El vídeo sale de `PXL_20261124_073302820.mp4` (en la carpeta, fuera de
+  git) re-codificado **sin ubicación ni audio** (el original llevaba las coordenadas). La descripción de la
+  tienda y el README dicen de entrada que **sin Tailscale no funciona nada** (Bruno). Galería
+  de la tienda: `remote.png` y `launcher.png` (sólo admite 320×170, así que las del móvil van en
+  `docs/`). Las capturas se hicieron sin tocar el aparato: el aparato, leyendo el framebuffer con
+  `head -c 108800 /dev/fb0` (RGB565le) y despertarlo y mover el lanzador mandando `wake` y
+  `touch` al WebSocket; la web, con Chrome sin pantalla emulando el Pixel (DevTools,
+  412×915 a 2,625) y en Descargas, que tiene ficheros de muestra (en Música salen los discos de
+  Bruno). launcher#268 sigue abierto: con 19 apps instaladas, Remote tumbaría el lanzador.
 - **0.4.2 (22-nov-2026) — iconos nuevos en los archivos.** Lo pidió Bruno («un poco
   viejunos»). Fuera los emojis (dependen de cada móvil): iconos de línea propios en SVG
   (`ICON` en la web, 24×24, `currentColor`), con color por tipo (`--i-folder`, `--i-image`…,
