@@ -166,8 +166,7 @@ Tools/instalar.sh                                  # todo lo anterior + instalar
   en la web a los 2-3 s y encenderlo lo devuelve). Para hacer sitio en el lanzador Bruno quitó
   FactoryTest, GPS (el de origen), IR Chat y Keyboard Guide (desinstalados) y ocultó la
   calculadora (`app_Math: 0` en `~/.config/cardputerzero/config.json`; copia en
-  `config.json.antes-20261122`). **Sin probar en el móvil**: escanear el QR, subir desde el
-  móvil. No enviada a la tienda.
+  `config.json.antes-20261122`). Desde el móvil (QR, subir) **Bruno lo da por bueno** (25-nov-2026: «está perfecto»). No enviada a la tienda.
 - **0.1.0 (22-nov-2026)** — pantalla y teclado. En el Pixel de Bruno el nombre `cpzero` no
   resuelve: hay que usar la IP (por eso el QR).
 - Idea para después: versión por cable con adb (app de Android que llega al mismo servicio con
