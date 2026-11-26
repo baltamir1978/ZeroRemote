@@ -105,7 +105,7 @@ Tools/instalar.sh                                  # todo lo anterior + instalar
 
 ## Estado
 
-- **0.4.3 enviada a la tienda (24-nov-2026): [#781](https://github.com/CardputerZero/packages/pull/781).**
+- **0.4.3 publicada en la tienda: enviada el 24-nov-2026, [#781](https://github.com/CardputerZero/packages/pull/781) con merge el 26-nov-2026.**
   Lo pidió Bruno. CI en verde; como es la primera publicación, espera a que la revise un
   responsable. Vídeo en el aparato y capturas de la web en el móvil en la release
   [`video-0.4.3`](https://github.com/baltamir1978/ZeroRemote/releases/tag/video-0.4.3), enlazados
